@@ -1,0 +1,79 @@
+# Runs on the EC2 host at /opt/owl/docker-compose.yml.
+# Images come from ECR; tags and secrets come from /opt/owl/.env (populated
+# from SSM Parameter Store by /opt/owl/deploy.sh).
+name: owl
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  api:
+    image: ${ECR_REGISTRY}/owl-api:${IMAGE_TAG:-latest}
+    restart: always
+    environment:
+      OWL_API_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/owl_api
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-owl-prod}
+      OWL_INTERNAL_TOKEN: ${OWL_INTERNAL_TOKEN}
+      OWL_WEB_ORIGINS: https://${OWL_DOMAIN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  admin:
+    image: ${ECR_REGISTRY}/owl-admin:${IMAGE_TAG:-latest}
+    restart: always
+    environment:
+      RAILS_ENV: production
+      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/owl_admin
+      OWL_API_URL: http://api:8000
+      OWL_INTERNAL_TOKEN: ${OWL_INTERNAL_TOKEN}
+      OWL_WEB_ORIGINS: https://${OWL_DOMAIN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    image: ${ECR_REGISTRY}/owl-web:${IMAGE_TAG:-latest}
+    restart: always
+
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      OWL_DOMAIN: ${OWL_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+      - admin
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

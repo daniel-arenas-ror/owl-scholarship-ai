@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1
+# Development image for docker-compose. The production build is in ./Dockerfile.
+ARG RUBY_VERSION=3.2.2
+FROM docker.io/library/ruby:$RUBY_VERSION-slim
+
+WORKDIR /rails
+
+ENV RAILS_ENV=development \
+    BUNDLE_PATH=/usr/local/bundle \
+    BINDING=0.0.0.0
+
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y \
+      build-essential git curl libpq-dev libvips libyaml-dev pkg-config postgresql-client && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN gem install foreman
+
+COPY Gemfile Gemfile.lock ./
+RUN bundle install
+
+COPY . .
+
+EXPOSE 3000
+CMD ["./bin/dev"]

@@ -1,0 +1,20 @@
+# Edge reverse proxy on the EC2 host. Terminates TLS with Let's Encrypt and
+# routes to the service containers on the compose network.
+{
+	email {$ACME_EMAIL}
+}
+
+{$OWL_DOMAIN} {
+	encode gzip
+	reverse_proxy web:80
+}
+
+api.{$OWL_DOMAIN} {
+	encode gzip
+	reverse_proxy api:8000
+}
+
+admin.{$OWL_DOMAIN} {
+	encode gzip
+	reverse_proxy admin:3000
+}

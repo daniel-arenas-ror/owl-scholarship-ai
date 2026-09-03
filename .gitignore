@@ -1,0 +1,49 @@
+# --- secrets / env ---
+.env
+.env.*
+!.env.example
+*.pem
+**/config/master.key
+**/config/credentials/*.key
+
+# --- os / editor ---
+.DS_Store
+*.swp
+.idea/
+.vscode/
+!.vscode/extensions.json
+
+# --- node (owl-web) ---
+node_modules/
+owl-web/dist/
+*.local
+
+# --- python (owl-api) ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- ruby / rails (owl-admin) ---
+owl-admin/tmp/
+owl-admin/log/
+owl-admin/storage/
+owl-admin/.bundle/
+owl-admin/vendor/bundle/
+owl-admin/app/assets/builds/*
+!owl-admin/app/assets/builds/.keep
+owl-admin/public/assets/
+
+# --- terraform (owl-infra) ---
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+
+# --- docker ---
+.docker-data/

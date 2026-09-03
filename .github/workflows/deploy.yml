@@ -1,0 +1,79 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  id-token: write # OIDC -> AWS
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  SSM_PREFIX: /owl
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [owl-web, owl-admin, owl-api]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.service }}
+          # owl-web ships the Caddy-static image; owl-admin uses its prod Dockerfile.
+          target: ${{ matrix.service == 'owl-web' && 'static' || '' }}
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ matrix.service }}:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/${{ matrix.service }}:latest
+          build-args: |
+            VITE_ADMIN_API_URL=${{ vars.VITE_ADMIN_API_URL }}
+            VITE_OWL_API_URL=${{ vars.VITE_OWL_API_URL }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Point the host at this build
+        run: |
+          aws ssm put-parameter --name "$SSM_PREFIX/IMAGE_TAG" \
+            --type SecureString --overwrite --value "${{ github.sha }}"
+
+      - name: Run deploy.sh on the instance
+        run: |
+          cmd_id=$(aws ssm send-command \
+            --document-name AWS-RunShellScript \
+            --targets "Key=tag:Name,Values=owl-app" \
+            --comment "deploy ${{ github.sha }}" \
+            --parameters 'commands=["sudo /opt/owl/deploy.sh"]' \
+            --query 'Command.CommandId' --output text)
+          echo "command: $cmd_id"
+          aws ssm wait command-executed --command-id "$cmd_id" \
+            --instance-id "$(aws ec2 describe-instances \
+              --filters 'Name=tag:Name,Values=owl-app' 'Name=instance-state-name,Values=running' \
+              --query 'Reservations[0].Instances[0].InstanceId' --output text)" || true

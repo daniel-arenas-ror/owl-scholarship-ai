@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# EC2 user_data. Rendered by Terraform (ec2.tf). Runs once at first boot.
+set -euxo pipefail
+
+dnf update -y
+dnf install -y docker
+systemctl enable --now docker
+usermod -aG docker ec2-user
+
+# docker compose plugin (ARM64)
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -fsSL "https://github.com/docker/compose/releases/download/v${compose_version}/docker-compose-linux-aarch64" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+install -d -m 0755 /opt/owl /opt/owl/initdb
+
+cat > /opt/owl/docker-compose.yml <<'COMPOSE_EOF'
+${compose_prod}
+COMPOSE_EOF
+
+cat > /opt/owl/Caddyfile <<'CADDY_EOF'
+${caddyfile}
+CADDY_EOF
+
+cat > /opt/owl/initdb/10-databases.sql <<'INITDB_EOF'
+${initdb_sql}
+INITDB_EOF
+
+cat > /opt/owl/deploy.sh <<'DEPLOY_EOF'
+${deploy_sh}
+DEPLOY_EOF
+chmod +x /opt/owl/deploy.sh
+
+cat > /etc/environment <<ENV_EOF
+AWS_REGION=${region}
+OWL_SSM_PREFIX=${ssm_prefix}
+ENV_EOF
+
+# First deploy (safe to fail if SSM params aren't set yet — rerun via the workflow)
+AWS_REGION=${region} OWL_SSM_PREFIX=${ssm_prefix} /opt/owl/deploy.sh || \
+  echo "initial deploy skipped — set SSM params then run deploy.sh"

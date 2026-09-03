@@ -1,0 +1,41 @@
+<% content_for :title, "Owl Admin" %>
+
+<div class="mx-auto flex max-w-2xl flex-col gap-8 px-6 py-20">
+  <header class="flex items-center gap-3">
+    <span aria-hidden="true" class="text-3xl">🦉</span>
+    <h1 class="font-display text-3xl font-semibold tracking-tight">Owl Admin</h1>
+  </header>
+
+  <p class="text-muted">
+    Panel de administración: conversaciones, satisfacción de usuarios, inventario
+    de becas y afinamiento del agente. Esqueleto de la Fase&nbsp;0 — los tableros
+    llegan en la Fase&nbsp;5.
+  </p>
+
+  <section class="flex flex-col gap-3">
+    <h2 class="text-xs font-medium uppercase tracking-widest text-muted">
+      Comprobaciones
+    </h2>
+    <ul class="flex flex-col gap-2 text-sm">
+      <li class="flex items-center justify-between rounded-lg border border-owl-100 bg-white px-4 py-3">
+        <span class="font-mono">owl-admin</span>
+        <span class="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">en línea</span>
+      </li>
+      <li class="flex items-center justify-between rounded-lg border border-owl-100 bg-white px-4 py-3">
+        <span class="font-mono">base de datos</span>
+        <span class="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+          <%= ActiveRecord::Base.connection.active? ? "conectada" : "sin conexión" %>
+        </span>
+      </li>
+      <li class="flex items-center justify-between rounded-lg border border-owl-100 bg-white px-4 py-3">
+        <span class="font-mono">owl-api</span>
+        <span class="font-mono text-xs text-muted"><%= @owl_api_url %></span>
+      </li>
+    </ul>
+  </section>
+
+  <p class="text-xs text-muted">
+    <code class="rounded bg-owl-50 px-1.5 py-0.5">/up</code> para el health check ·
+    Rails <%= Rails.version %> · Ruby <%= RUBY_VERSION %>
+  </p>
+</div>

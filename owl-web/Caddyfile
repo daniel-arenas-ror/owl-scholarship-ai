@@ -1,0 +1,8 @@
+# Serves the built SPA inside the owl-web container. The edge Caddy on the
+# EC2 host (owl-infra/instance/Caddyfile) terminates TLS and proxies here.
+:80 {
+	root * /srv
+	encode gzip
+	try_files {path} /index.html
+	file_server
+}

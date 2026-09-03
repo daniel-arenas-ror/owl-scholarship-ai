@@ -1,0 +1,27 @@
+name: Infra
+
+on:
+  pull_request:
+    paths: ["owl-infra/**", ".github/workflows/infra.yml"]
+  push:
+    branches: [main]
+    paths: ["owl-infra/**"]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: owl-infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.12.6"
+      - run: tofu fmt -check -recursive
+      - run: tofu init -backend=false -input=false
+      - run: tofu validate
+
+# `tofu plan` / `apply` are run locally against your AWS account — see
+# owl-infra/README.md. Wire them in here behind a protected environment once
+# the OIDC role has the broader permissions plan/apply need.

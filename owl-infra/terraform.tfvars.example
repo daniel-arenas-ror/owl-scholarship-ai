@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is git-ignored.
+
+region        = "us-east-1"
+instance_type = "t4g.small"
+
+# Leave blank to skip Route 53 and reach the box by IP while iterating.
+domain     = ""
+acme_email = ""
+
+# Your current IP for optional SSH (SSM Session Manager needs no rule at all).
+# ssh_ingress_cidr = "203.0.113.4/32"

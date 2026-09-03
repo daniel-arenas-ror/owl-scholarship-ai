@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Shared Owl theme. Keep this @theme block in sync with
+   owl-web/src/index.css so both front ends match.
+   --------------------------------------------------------------------------- */
+@theme {
+  --color-paper: #f6f5f2;
+  --color-ink: #1b1c29;
+  --color-muted: #5b5e76;
+
+  --color-owl-50: #ecebf6;
+  --color-owl-100: #d7d6ee;
+  --color-owl-500: #3a3e8f;
+  --color-owl-600: #2f327a;
+  --color-owl-700: #262a63;
+
+  --color-brass-300: #d6a75c;
+  --color-brass-500: #8f6427;
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
