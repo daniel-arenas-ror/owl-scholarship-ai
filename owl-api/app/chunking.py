@@ -2,6 +2,8 @@
 (a few paragraphs); revisit if a source turns out to need more nuance.
 """
 
+## TODO: Maybe we can use MarkdownTextSplitter
+
 TARGET_CHARS = 900
 OVERLAP_CHARS = 150
 
