@@ -14,10 +14,6 @@ make up                       # http://localhost:5173 · :3000 · :8000
 `make test` / `make fmt` / `make lint` run across all three services in
 containers, so a working local Ruby/Node/Python is not required.
 
-> This machine has both `rbenv` and `rvm` installed, which collide in
-> non-interactive shells. Run owl-admin **through Docker** (`make …`), or fix the
-> Ruby setup (pick one manager) before using `bin/rails` directly.
-
 ## 2. Tooling for deployment
 
 ```bash
