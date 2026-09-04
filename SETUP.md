@@ -2,6 +2,10 @@
 
 Everything a human has to do that Claude can't (accounts, credentials, DNS).
 
+> **Steps 2–8 are Phase 7 (deploy) and are deliberately on hold.** We're
+> building the product locally first — see the [roadmap](https://claude.ai/code/artifact/c374c30e-89cb-42e2-b239-c331cabc32c7).
+> Only step 1 (local dev) is needed for now.
+
 ## 1. Local development
 
 ```bash
@@ -44,9 +48,9 @@ three ECR repos, `/owl/*` SSM parameters (placeholder values), and — if
 
 ```bash
 aws ssm put-parameter --name /owl/POSTGRES_PASSWORD  --type SecureString --overwrite --value "$(openssl rand -hex 16)"
-aws ssm put-parameter --name /owl/OWL_INTERNAL_TOKEN --type SecureString --overwrite --value "$(openssl rand -hex 32)"
 aws ssm put-parameter --name /owl/OPENAI_API_KEY     --type SecureString --overwrite --value "sk-..."
 aws ssm put-parameter --name /owl/RAILS_MASTER_KEY   --type SecureString --overwrite --value "$(cat owl-admin/config/master.key)"
+aws ssm put-parameter --name /owl/OWL_JWT_PRIVATE_KEY --type SecureString --overwrite --value "$(cat owl-admin/config/jwt/private_key.pem)"
 ```
 
 ## 6. GitHub

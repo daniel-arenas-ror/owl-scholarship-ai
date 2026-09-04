@@ -33,7 +33,6 @@ services:
       LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
       LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
       LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-owl-dev}
-      OWL_INTERNAL_TOKEN: ${OWL_INTERNAL_TOKEN:-dev-internal-token-change-me}
       OWL_WEB_ORIGINS: http://localhost:5173
     ports:
       - "8000:8000"
@@ -51,7 +50,6 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-owl}:${POSTGRES_PASSWORD:-owl}@postgres:5432/owl_admin
       TEST_DATABASE_URL: postgres://${POSTGRES_USER:-owl}:${POSTGRES_PASSWORD:-owl}@postgres:5432/owl_admin_test
       OWL_API_URL: http://api:8000
-      OWL_INTERNAL_TOKEN: ${OWL_INTERNAL_TOKEN:-dev-internal-token-change-me}
       OWL_WEB_ORIGINS: http://localhost:5173
       BINDING: 0.0.0.0
     ports:

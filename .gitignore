@@ -5,6 +5,7 @@
 *.pem
 **/config/master.key
 **/config/credentials/*.key
+**/config/jwt/
 
 # --- os / editor ---
 .DS_Store

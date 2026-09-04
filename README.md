@@ -12,6 +12,11 @@ Built as three deployed services in one repository.
 
 Full plan: **[Owl Build Roadmap](https://claude.ai/code/artifact/c374c30e-89cb-42e2-b239-c331cabc32c7)**
 
+**Status:** Phase 1 done — register/log in, start a conversation, and get a
+grounded answer once scholarships are ingested, all running locally via
+`make up`. Deployment is deliberately saved for the final phase (Phase 7); see
+the roadmap.
+
 ## Architecture (target)
 
 Everything server-side — `owl-admin`, `owl-api`, Postgres 16 + pgvector, and a Caddy
@@ -50,11 +55,13 @@ make fmt lint    # format and lint every project
 
 Each folder has its own README for running that service on its own.
 
-## Deployment
+## Deployment (Phase 7 — not yet applied)
 
-CI builds an image per service, pushes it to Amazon ECR, and runs
+The Terraform and CI in `owl-infra/` are written and validated, but
+deliberately not applied yet — we're building the product locally first. When
+it's time: CI builds an image per service, pushes it to Amazon ECR, and runs
 `docker compose pull && up -d` on the EC2 instance over SSM — no SSH keys in CI.
-See [`owl-infra/README.md`](owl-infra/README.md) for the one-time AWS setup.
+See [`owl-infra/README.md`](owl-infra/README.md) and [`SETUP.md`](SETUP.md).
 
 ## License
 
