@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.db import ensure_pgvector
+from app.db import create_tables, ensure_pgvector
 from app.routers import agent, health, scholarships
 
 logger = logging.getLogger("owl_api")
@@ -17,9 +17,10 @@ async def lifespan(_: FastAPI):
     settings = get_settings()
     try:
         ensure_pgvector()
-        logger.info("pgvector ready")
+        create_tables()
+        logger.info("pgvector ready, tables ensured")
     except Exception as exc:  # noqa: BLE001 - log and continue so /health can report it
-        logger.warning("could not enable pgvector: %s", exc)
+        logger.warning("could not prepare the database: %s", exc)
     if settings.langsmith_tracing:
         logger.info("LangSmith tracing enabled for project %s", settings.langsmith_project)
     yield
