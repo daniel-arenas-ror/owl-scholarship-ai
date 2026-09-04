@@ -29,3 +29,10 @@ def ensure_pgvector() -> None:
     """Enable the pgvector extension. Safe to call on every startup."""
     with engine.begin() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+
+
+def create_tables() -> None:
+    """Phase 1 shortcut in place of real migrations — see app/db_models.py."""
+    from app.db_models import Base
+
+    Base.metadata.create_all(engine)
