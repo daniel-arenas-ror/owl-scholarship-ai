@@ -37,6 +37,7 @@ Node 20+, Ruby 3.2+, Python 3.12+.
 cp .env.example .env        # then fill in OPENAI_API_KEY at minimum
 make setup                  # one-time: build images, create + migrate the database
 make up                     # start Postgres + all three services
+make seed                   # (once make up is running) load db/seeds/scholarships.json
 ```
 
 | URL | Service |

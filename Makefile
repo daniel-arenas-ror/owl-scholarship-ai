@@ -2,7 +2,7 @@ COMPOSE := docker compose
 
 .DEFAULT_GOAL := help
 .PHONY: help setup up down restart build logs ps \
-        sh-api sh-admin sh-web db \
+        sh-api sh-admin sh-web db seed console \
         test test-api test-admin test-web fmt lint clean
 
 help: ## Show this help
@@ -39,11 +39,17 @@ sh-api: ## Shell into owl-api
 sh-admin: ## Shell into owl-admin
 	$(COMPOSE) exec admin bash
 
+console: ## Rails console in owl-admin (needs `make up` running)
+	$(COMPOSE) exec admin bin/rails c
+
 sh-web: ## Shell into owl-web
 	$(COMPOSE) exec web sh
 
 db: ## psql into the Postgres container
 	$(COMPOSE) exec postgres psql -U owl -d owl
+
+seed: ## Push db/seeds/scholarships.json into owl-api (needs `make up` running + OPENAI_API_KEY in .env)
+	$(COMPOSE) run --rm admin bin/rails scholarships:seed
 
 test: test-api test-admin test-web ## Run every test suite
 

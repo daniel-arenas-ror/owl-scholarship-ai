@@ -37,6 +37,27 @@ browser's own session (`Authorization: Bearer <token>` on every `/api` call),
 and a 5-minute `aud: "owl-api"` token `OwlApiClient` mints per request for the
 server-to-server call. Both are signed RS256 by `JwtService`.
 
+## Seeding scholarships
+
+```bash
+make up      # in another terminal — must already be running
+make seed    # or: docker compose run --rm admin bin/rails scholarships:seed
+```
+
+`docker compose run` only starts *this* container's own `depends_on`
+(Postgres) — it won't bring up `api` as a side effect, since `admin` doesn't
+declare a dependency on it. So `make seed` (or a bare `bin/rails
+scholarships:seed` outside Docker) needs owl-api already reachable, or every
+scholarship fails with `Failed to open TCP connection to api:8000`.
+
+Reads `db/seeds/scholarships.json` (8 real, well-known programs — ICETEX,
+Colfuturo, Chevening, DAAD, Fulbright, Erasmus Mundus, MinCiencias, Eiffel —
+marked as example/seed data with a "verify on the official site" note baked
+into each entry) and pushes each one through `OwlApiClient.ingest`, which
+chunks, embeds, and stores it in owl-api's pgvector. Needs a real
+`OPENAI_API_KEY` in `.env` — owl-api returns 503 without one. Idempotent: a
+second run reports `unchanged` for anything whose content hasn't changed.
+
 ## Environment
 
 | Var | Meaning |
