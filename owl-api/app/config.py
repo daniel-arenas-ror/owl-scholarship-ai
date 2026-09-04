@@ -24,9 +24,8 @@ class Settings(BaseSettings):
     langsmith_api_key: str = ""
     langsmith_project: str = "owl-dev"
 
-    # Trust boundary with owl-admin
-    owl_internal_token: str = "dev-internal-token-change-me"
-    owl_admin_jwks_url: str = "http://owl-admin:3000/.well-known/jwks.json"
+    # Trust boundary with owl-admin: RS256 JWTs verified against its JWKS
+    owl_admin_jwks_url: str = "http://admin:3000/.well-known/jwks.json"
     owl_jwt_audience: str = "owl-api"
     owl_jwt_issuer: str = "owl-admin"
 
