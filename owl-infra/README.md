@@ -52,10 +52,10 @@ Terraform owns the parameter *names*; set values by hand so they never touch
 state:
 
 ```bash
-aws ssm put-parameter --name /owl/POSTGRES_PASSWORD  --type SecureString --overwrite --value "$(openssl rand -hex 16)"
-aws ssm put-parameter --name /owl/OWL_INTERNAL_TOKEN --type SecureString --overwrite --value "$(openssl rand -hex 32)"
-aws ssm put-parameter --name /owl/OPENAI_API_KEY     --type SecureString --overwrite --value "sk-..."
-aws ssm put-parameter --name /owl/RAILS_MASTER_KEY   --type SecureString --overwrite --value "$(cat ../owl-admin/config/master.key)"
+aws ssm put-parameter --name /owl/POSTGRES_PASSWORD   --type SecureString --overwrite --value "$(openssl rand -hex 16)"
+aws ssm put-parameter --name /owl/OPENAI_API_KEY      --type SecureString --overwrite --value "sk-..."
+aws ssm put-parameter --name /owl/RAILS_MASTER_KEY    --type SecureString --overwrite --value "$(cat ../owl-admin/config/master.key)"
+aws ssm put-parameter --name /owl/OWL_JWT_PRIVATE_KEY --type SecureString --overwrite --value "$(cat ../owl-admin/config/jwt/private_key.pem)"
 # OWL_DOMAIN / ACME_EMAIL are set from terraform.tfvars; override here if needed.
 ```
 

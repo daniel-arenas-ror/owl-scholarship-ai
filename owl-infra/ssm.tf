@@ -19,7 +19,7 @@ locals {
     LANGSMITH_TRACING      = "false"
     LANGSMITH_API_KEY      = "CHANGE_ME"
     LANGSMITH_PROJECT      = "owl-prod"
-    OWL_INTERNAL_TOKEN     = "CHANGE_ME"
+    OWL_JWT_PRIVATE_KEY    = "CHANGE_ME" # PEM, single line with \n escapes
     RAILS_MASTER_KEY       = "CHANGE_ME"
     OWL_DOMAIN             = var.domain
     ACME_EMAIL             = var.acme_email

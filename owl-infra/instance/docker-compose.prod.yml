@@ -31,7 +31,6 @@ services:
       LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
       LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
       LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-owl-prod}
-      OWL_INTERNAL_TOKEN: ${OWL_INTERNAL_TOKEN}
       OWL_WEB_ORIGINS: https://${OWL_DOMAIN}
     depends_on:
       postgres:
@@ -43,9 +42,9 @@ services:
     environment:
       RAILS_ENV: production
       RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
+      OWL_JWT_PRIVATE_KEY: ${OWL_JWT_PRIVATE_KEY}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/owl_admin
       OWL_API_URL: http://api:8000
-      OWL_INTERNAL_TOKEN: ${OWL_INTERNAL_TOKEN}
       OWL_WEB_ORIGINS: https://${OWL_DOMAIN}
     depends_on:
       postgres:
