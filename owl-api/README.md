@@ -18,21 +18,43 @@ pytest
 ruff check . && ruff format --check .
 ```
 
+Needs a Postgres with the `vector` extension available (the `pgvector/pgvector`
+image the compose stack uses; a plain local Postgres won't have it installed).
+
+## API (Phase 1)
+
+Both endpoints require a valid RS256 JWT from owl-admin (`aud: owl-api`) —
+see `app/security.py`.
+
+| Route | Purpose |
+| --- | --- |
+| `GET /health` | `{ status, database }`. |
+| `POST /v1/scholarships/ingest` | Upsert by `content_hash`: chunk `body_markdown`, embed each chunk with OpenAI, store the vectors in pgvector. 503 if `OPENAI_API_KEY` isn't set. |
+| `POST /v1/agent/respond` | Embed the question, retrieve the 5 nearest chunks by cosine distance, answer grounded in them with citations. Returns a graceful canned message (no OpenAI call) if there's no key or no scholarships yet. |
+
 ## Layout
 
 | Path | Purpose |
 | --- | --- |
-| `app/main.py` | App factory, router wiring, startup (`CREATE EXTENSION vector`). |
+| `app/main.py` | App factory, router wiring, startup (`CREATE EXTENSION vector`, table creation). |
 | `app/config.py` | Env-driven settings (`pydantic-settings`). |
-| `app/schemas.py` | Wire contracts shared with owl-admin. |
-| `app/routers/health.py` | `GET /health`. |
-| `app/routers/scholarships.py` | `POST /v1/scholarships/ingest` (stub). |
-| `app/routers/agent.py` | `POST /v1/agent/respond` (stub). |
-| `app/security.py` | Shared-secret guard; becomes JWT/JWKS in Phase 1. |
+| `app/schemas.py` | Pydantic wire contracts shared with owl-admin. |
+| `app/db_models.py` | SQLAlchemy ORM models: `Scholarship`, `ScholarshipChunk` (pgvector column). |
+| `app/chunking.py` | Dependency-free paragraph-packing chunker. |
+| `app/embeddings.py` / `app/llm.py` | `langchain-openai` wrappers for embeddings and chat. |
+| `app/routers/scholarships.py` | `POST /v1/scholarships/ingest`. |
+| `app/routers/agent.py` | `POST /v1/agent/respond`. |
+| `app/security.py` | RS256 JWT verification against owl-admin's JWKS (cached 5 min). |
+
+## Known Phase 1 shortcut
+
+Tables are created with `Base.metadata.create_all()` at startup instead of real
+migrations (see `app/db.py:create_tables`). Fine while there's one schema
+change at a time; revisit with Alembic once that's no longer true.
 
 ## Roadmap
 
-- **Phase 1** — real ingest (chunk + embed + upsert into pgvector) and a single
-  retrieval chain behind `/v1/agent/respond`; LangSmith tracing.
-- **Phase 2** — `/v1/agent/respond` becomes an SSE stream.
-- **Phase 4** — LangGraph supervisor + per-scholarship expert agent; eval suite.
+- **Phase 2** — `/v1/agent/respond` becomes an SSE stream; LangGraph Postgres
+  checkpointer.
+- **Phase 4** — LangGraph supervisor + per-scholarship expert agent; LangSmith
+  eval suite.

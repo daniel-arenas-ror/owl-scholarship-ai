@@ -15,6 +15,12 @@ select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC"]
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency injection is built on Depends(...)/Query(...)/Body(...)
+# as argument defaults — the intended pattern, not the mutable-default bug B008
+# usually catches.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body", "fastapi.Header"]
+
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]

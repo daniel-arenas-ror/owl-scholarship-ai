@@ -8,9 +8,10 @@ psycopg[binary]>=3.1,<4.0
 httpx>=0.27,<1.0
 pyjwt[crypto]>=2.8,<3.0
 
-# --- added in Phase 1 (retrieval + agent), kept here for reference ---
-# langchain>=0.3,<0.4
+# --- Phase 1: retrieval + agent ---
+pgvector>=0.3,<1.0
+langchain-openai>=0.2,<0.3
+langsmith>=0.1,<1.0
+
+# --- added in Phase 4 (multi-agent), kept here for reference ---
 # langgraph>=0.2,<0.3
-# langchain-openai>=0.2,<0.3
-# langchain-postgres>=0.0.12
-# langsmith>=0.1
