@@ -16,6 +16,19 @@ jobs:
     defaults:
       run:
         working-directory: owl-api
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: owl
+          POSTGRES_PASSWORD: owl
+          POSTGRES_DB: owl_api_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U owl" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+    env:
+      OWL_API_DATABASE_URL: postgresql+psycopg://owl:owl@localhost:5432/owl_api_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

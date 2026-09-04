@@ -5,5 +5,6 @@
 CREATE DATABASE owl_api;
 CREATE DATABASE owl_admin;
 
--- Rails also wants a *_test database.
+-- Test databases, kept separate so running the suites never touches dev data.
+CREATE DATABASE owl_api_test;
 CREATE DATABASE owl_admin_test;
