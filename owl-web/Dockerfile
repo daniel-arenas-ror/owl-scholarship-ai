@@ -11,6 +11,8 @@ WORKDIR /app
 ENV NODE_ENV=development
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN chmod +x docker-entrypoint.sh
+ENTRYPOINT ["./docker-entrypoint.sh"]
 EXPOSE 5173
 CMD ["npm", "run", "dev"]
 
