@@ -33,6 +33,9 @@
 # Ignore key files for decrypting credentials and more.
 /config/*.key
 
+# Dev RSA keypair for JwtService (production uses OWL_JWT_PRIVATE_KEY from SSM)
+/config/jwt/
+
 
 /app/assets/builds/*
 !/app/assets/builds/.keep

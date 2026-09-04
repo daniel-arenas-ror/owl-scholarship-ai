@@ -79,11 +79,14 @@ Rails.application.configure do
   config.active_record.attributes_for_inspect = [ :id ]
 
   # Enable DNS rebinding protection and other `Host` header attacks.
-  # config.hosts = [
-  #   "example.com",     # Allow requests from example.com
-  #   /.*\.example\.com/ # Allow requests from subdomains like `www.example.com`
-  # ]
-  #
+  # "admin" is the docker-compose service name — owl-api and Caddy reach this
+  # container by that hostname, not by the public domain.
+  config.hosts = [ "admin" ]
+  if ENV["OWL_DOMAIN"].present?
+    config.hosts << ENV["OWL_DOMAIN"]
+    config.hosts << /.*\.#{Regexp.escape(ENV["OWL_DOMAIN"])}/
+  end
+
   # Skip DNS rebinding protection for the default health check endpoint.
-  # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+  config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
 end

@@ -20,6 +20,23 @@ bin/rails test
 bin/rubocop
 ```
 
+## API (Phase 1)
+
+| Route | Auth | Purpose |
+| --- | --- | --- |
+| `POST /api/registrations` | none | Sign up — `{ email, password }` → `{ token, user }`. |
+| `POST /api/session` | none | Log in — same shape as above. |
+| `DELETE /api/session` | none | Log out (stateless; the client just drops the token). |
+| `POST /api/conversations` | Bearer | Start a conversation for the current user. |
+| `GET /api/conversations/:id` | Bearer | Fetch a conversation with its messages. |
+| `POST /api/conversations/:id/messages` | Bearer | Post a user message; owl-admin calls owl-api and returns both turns. |
+| `GET /.well-known/jwks.json` | none | Publishes the RSA public key `owl-api` verifies against. |
+
+Auth is a single JWT scheme reused for two audiences: `aud: "owl-admin"` for the
+browser's own session (`Authorization: Bearer <token>` on every `/api` call),
+and a 5-minute `aud: "owl-api"` token `OwlApiClient` mints per request for the
+server-to-server call. Both are signed RS256 by `JwtService`.
+
 ## Environment
 
 | Var | Meaning |
@@ -27,15 +44,20 @@ bin/rubocop
 | `DATABASE_URL` | Postgres connection (development / production). |
 | `TEST_DATABASE_URL` | Postgres connection for the test suite. |
 | `OWL_API_URL` | Base URL of owl-api for server-to-server calls. |
-| `OWL_INTERNAL_TOKEN` | Shared secret on the owl-admin → owl-api path (Phase 1: JWT). |
 | `OWL_WEB_ORIGINS` | Comma-separated CORS allow-list (defaults to the Vite dev server). |
 | `RAILS_MASTER_KEY` | Production only; provided from SSM. Dev reads `config/master.key`. |
+| `OWL_JWT_PRIVATE_KEY` | Production only (PEM, from SSM). Dev generates and caches `config/jwt/private_key.pem`. |
 
 ## Styling
 
 Tailwind v4 via `tailwindcss-rails` (standalone CLI, no Node). The `@theme` block
 in `app/assets/tailwind/application.css` is the shared Owl palette — keep it in
 sync with `owl-web/src/index.css`.
+
+## Known Phase 1 shortcut
+
+No Alembic-style migration discipline needed here — Rails migrations already do
+that job properly. The shortcut is on the owl-api side (see its README).
 
 ## Docker
 
@@ -44,7 +66,6 @@ sync with `owl-web/src/index.css`.
 
 ## Roadmap
 
-- **Phase 1** — Devise + `User`, RS256 JWT issuance + `/.well-known/jwks.json`,
-  `Conversation` / `Message`, the `/api` endpoints owl-web calls.
+- **Phase 2** — streaming, per-message feedback, LangGraph checkpointer.
 - **Phase 3** — GoodJob + the "Run crawl" action and `Source` model.
 - **Phase 5** — the admin dashboards (conversations, satisfaction, inventory).

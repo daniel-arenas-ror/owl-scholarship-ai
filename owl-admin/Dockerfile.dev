@@ -22,4 +22,6 @@ RUN bundle install
 COPY . .
 
 EXPOSE 3000
-CMD ["./bin/dev"]
+# admin_bundle is a named volume so gems survive a rebuild — but that means it
+# doesn't auto-update when the Gemfile changes, so reconcile on every boot.
+CMD ["sh", "-c", "bundle check || bundle install; exec ./bin/dev"]
