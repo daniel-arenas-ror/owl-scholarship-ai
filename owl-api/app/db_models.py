@@ -6,10 +6,10 @@ startup (see app.db.create_tables) instead of real migrations. Revisit with
 Alembic once the schema has more than one moving piece.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ARRAY, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import ARRAY, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 EMBEDDING_DIMENSIONS = 1536  # text-embedding-3-small
@@ -34,14 +34,14 @@ class Scholarship(Base):
     levels: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
     funding_type: Mapped[str | None] = mapped_column(String(120), nullable=True)
     amount_note: Mapped[str | None] = mapped_column(Text, nullable=True)
-    deadline: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    deadline: Mapped[str | None] = mapped_column(Text, nullable=True)
     eligibility_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     body_markdown: Mapped[str] = mapped_column(Text)
     content_hash: Mapped[str] = mapped_column(String(64))
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, server_default=func.now(), onupdate=lambda: datetime.now(UTC)
     )
 
     chunks: Mapped[list["ScholarshipChunk"]] = relationship(

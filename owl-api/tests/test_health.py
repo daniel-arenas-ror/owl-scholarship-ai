@@ -1,16 +1,5 @@
-import pytest
-from fastapi.testclient import TestClient
-
 from app.main import app
 from app.security import require_service_auth
-
-
-@pytest.fixture(scope="module")
-def client():
-    # The `with` form runs the app's lifespan (ensure_pgvector + create_tables)
-    # before any test executes — plain TestClient(app) would skip it.
-    with TestClient(app) as c:
-        yield c
 
 
 def test_health_ok(client):
