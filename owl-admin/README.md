@@ -20,7 +20,7 @@ bin/rails test
 bin/rubocop
 ```
 
-## API (Phase 1)
+## API
 
 | Route | Auth | Purpose |
 | --- | --- | --- |
@@ -29,13 +29,18 @@ bin/rubocop
 | `DELETE /api/session` | none | Log out (stateless; the client just drops the token). |
 | `POST /api/conversations` | Bearer | Start a conversation for the current user. |
 | `GET /api/conversations/:id` | Bearer | Fetch a conversation with its messages. |
-| `POST /api/conversations/:id/messages` | Bearer | Post a user message; owl-admin calls owl-api and returns both turns. |
+| `POST /api/conversations/:id/messages` | Bearer | Persist the user's turn; returns a 5-minute stream token for owl-api. |
+| `POST /api/conversations/:id/messages/complete` | Bearer | The browser calls this once its SSE stream from owl-api ends, to persist the assembled answer. |
+| `POST /api/messages/:id/feedback` | Bearer | `{ rating: "up" \| "down", reason? }` — one row per message; a second call updates it in place. |
 | `GET /.well-known/jwks.json` | none | Publishes the RSA public key `owl-api` verifies against. |
 
 Auth is a single JWT scheme reused for two audiences: `aud: "owl-admin"` for the
 browser's own session (`Authorization: Bearer <token>` on every `/api` call),
-and a 5-minute `aud: "owl-api"` token `OwlApiClient` mints per request for the
-server-to-server call. Both are signed RS256 by `JwtService`.
+and a 5-minute `aud: "owl-api"` stream token minted per message so the browser
+can talk to owl-api directly (Phase 2 — see owl-web's README). Both are signed
+RS256 by `JwtService`. `OwlApiClient` is service-to-service only now (used by
+`scholarships:seed` and, later, the Phase 3 scraper) — conversation turns no
+longer route through owl-admin calling owl-api.
 
 ## Seeding scholarships
 
@@ -87,6 +92,5 @@ that job properly. The shortcut is on the owl-api side (see its README).
 
 ## Roadmap
 
-- **Phase 2** — streaming, per-message feedback, LangGraph checkpointer.
 - **Phase 3** — GoodJob + the "Run crawl" action and `Source` model.
 - **Phase 5** — the admin dashboards (conversations, satisfaction, inventory).

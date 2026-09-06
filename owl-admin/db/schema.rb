@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_04_191003) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_04_191004) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -20,6 +20,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_04_191003) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["user_id"], name: "index_conversations_on_user_id"
+  end
+
+  create_table "feedbacks", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "message_id", null: false
+    t.integer "rating", null: false
+    t.text "reason"
+    t.datetime "updated_at", null: false
+    t.index ["message_id"], name: "index_feedbacks_on_message_id", unique: true
   end
 
   create_table "messages", force: :cascade do |t|
@@ -43,5 +52,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_04_191003) do
   end
 
   add_foreign_key "conversations", "users"
+  add_foreign_key "feedbacks", "messages"
   add_foreign_key "messages", "conversations"
 end
