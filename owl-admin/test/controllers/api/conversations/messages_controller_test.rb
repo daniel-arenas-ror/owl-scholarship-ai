@@ -7,20 +7,45 @@ class Api::Conversations::MessagesControllerTest < ActionDispatch::IntegrationTe
     @token = JwtService.encode({ sub: @user.id.to_s }, audience: "owl-admin")
   end
 
-  test "creates a user message and the assistant reply from owl-api" do
-    fake_result = { message: "Hola, aquí tienes info.", agent: "general_advisor", citations: [] }
-    with_owl_api_client_stubbed(fake_result) do
+  test "streams the relayed answer and persists both messages" do
+    events = [
+      [ "token", { "content" => "Puedes " } ],
+      [ "token", { "content" => "considerar Chevening." } ],
+      [ "done", {
+        "message" => "Puedes considerar Chevening.",
+        "citations" => [ { "scholarship_id" => "3", "title" => "Chevening", "source_url" => "https://chevening.org" } ],
+        "agent" => "general_advisor"
+      } ]
+    ]
+
+    with_owl_api_stub(events) do
       post api_conversation_messages_path(@conversation),
-        params: { content: "hola" },
-        headers: { "Authorization" => "Bearer #{@token}" },
-        as: :json
+        params: { content: "beca para el Reino Unido" }, headers: auth_headers, as: :json
     end
 
-    assert_response :created
-    body = JSON.parse(response.body)
-    assert_equal "hola", body["user_message"]["content"]
-    assert_equal "Hola, aquí tienes info.", body["assistant_message"]["content"]
+    assert_response :ok
+    assert_equal "text/event-stream", response.media_type
+    assert_includes response.body, "event: user_message"
+    assert_includes response.body, %(event: token\ndata: {"content":"Puedes "})
+    assert_includes response.body, "event: done"
+
     assert_equal 2, @conversation.messages.count
+    assistant = @conversation.messages.find_by(role: :assistant)
+    assert_equal "Puedes considerar Chevening.", assistant.content
+    assert_equal 1, assistant.citations.length
+  end
+
+  test "relays an error event from owl-api without 500ing" do
+    with_owl_api_stub([ [ "error", { "detail" => "kaboom" } ] ]) do
+      post api_conversation_messages_path(@conversation),
+        params: { content: "hola" }, headers: auth_headers, as: :json
+    end
+
+    assert_response :ok
+    assert_includes response.body, %(event: error\ndata: {"detail":"kaboom"})
+    refute_includes response.body, "event: done"
+    # user message saved; no assistant message persisted for a failed turn
+    assert_equal [ "user" ], @conversation.messages.pluck(:role)
   end
 
   test "requires auth" do
@@ -28,15 +53,30 @@ class Api::Conversations::MessagesControllerTest < ActionDispatch::IntegrationTe
     assert_response :unauthorized
   end
 
+  test "unknown conversation returns 404 without opening a stream" do
+    other = User.create!(email: "other@example.com", password: "password123")
+    stranger_conversation = other.conversations.create!
+
+    post api_conversation_messages_path(stranger_conversation),
+      params: { content: "hola" }, headers: auth_headers, as: :json
+
+    assert_response :not_found
+    assert_equal "application/json", response.media_type
+  end
+
   private
 
-  # Swaps OwlApiClient.respond for the duration of the block, so this request
-  # test never makes a real HTTP call to owl-api.
-  def with_owl_api_client_stubbed(fake_result)
-    original = OwlApiClient.method(:respond)
-    OwlApiClient.define_singleton_method(:respond) { |**_kwargs| fake_result }
+  def auth_headers
+    { "Authorization" => "Bearer #{@token}" }
+  end
+
+  def with_owl_api_stub(events)
+    original = OwlApiClient.method(:stream)
+    OwlApiClient.define_singleton_method(:stream) do |conversation:, user_message:, &block|
+      events.each { |event, data| block.call(event, data) }
+    end
     yield
   ensure
-    OwlApiClient.define_singleton_method(:respond, original)
+    OwlApiClient.define_singleton_method(:stream, original)
   end
 end

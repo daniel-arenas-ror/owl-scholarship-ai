@@ -29,18 +29,16 @@ bin/rubocop
 | `DELETE /api/session` | none | Log out (stateless; the client just drops the token). |
 | `POST /api/conversations` | Bearer | Start a conversation for the current user. |
 | `GET /api/conversations/:id` | Bearer | Fetch a conversation with its messages. |
-| `POST /api/conversations/:id/messages` | Bearer | Persist the user's turn; returns a 5-minute stream token for owl-api. |
-| `POST /api/conversations/:id/messages/complete` | Bearer | The browser calls this once its SSE stream from owl-api ends, to persist the assembled answer. |
+| `POST /api/conversations/:id/messages` | Bearer | **SSE.** Persists the user turn, relays owl-api's token stream (`user_message`, `token`×N, `done` / `error`), then persists the assembled answer. `ActionController::Live`. |
 | `POST /api/messages/:id/feedback` | Bearer | `{ rating: "up" \| "down", reason? }` — one row per message; a second call updates it in place. |
 | `GET /.well-known/jwks.json` | none | Publishes the RSA public key `owl-api` verifies against. |
 
-Auth is a single JWT scheme reused for two audiences: `aud: "owl-admin"` for the
-browser's own session (`Authorization: Bearer <token>` on every `/api` call),
-and a 5-minute `aud: "owl-api"` stream token minted per message so the browser
-can talk to owl-api directly (Phase 2 — see owl-web's README). Both are signed
-RS256 by `JwtService`. `OwlApiClient` is service-to-service only now (used by
-`scholarships:seed` and, later, the Phase 3 scraper) — conversation turns no
-longer route through owl-admin calling owl-api.
+Two JWT audiences, both signed RS256 by `JwtService`: `aud: "owl-admin"` for the
+browser's session (`Authorization: Bearer <token>` on every `/api` call), and a
+5-minute `aud: "owl-api"` token `OwlApiClient` mints per outbound call. The
+browser only ever talks to owl-admin; owl-admin is owl-api's only client
+(streaming a turn, or `scholarships:seed` / the Phase 3 scraper calling
+`.ingest`).
 
 ## Seeding scholarships
 
