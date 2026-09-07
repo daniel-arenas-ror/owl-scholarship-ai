@@ -31,7 +31,6 @@ services:
       LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
       LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
       LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-owl-prod}
-      OWL_WEB_ORIGINS: https://${OWL_DOMAIN}
     depends_on:
       postgres:
         condition: service_healthy

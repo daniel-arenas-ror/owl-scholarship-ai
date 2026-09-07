@@ -1,5 +1,6 @@
 # Edge reverse proxy on the EC2 host. Terminates TLS with Let's Encrypt and
-# routes to the service containers on the compose network.
+# routes to the service containers on the compose network. owl-api is not
+# exposed — only owl-admin talks to it, over the internal compose network.
 {
 	email {$ACME_EMAIL}
 }
@@ -9,12 +10,10 @@
 	reverse_proxy web:80
 }
 
-api.{$OWL_DOMAIN} {
-	encode gzip
-	reverse_proxy api:8000
-}
-
 admin.{$OWL_DOMAIN} {
 	encode gzip
-	reverse_proxy admin:3000
+	# SSE from POST /api/conversations/:id/messages — don't buffer it.
+	reverse_proxy admin:3000 {
+		flush_interval -1
+	}
 }
