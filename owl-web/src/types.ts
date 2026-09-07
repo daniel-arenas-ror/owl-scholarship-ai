@@ -33,3 +33,11 @@ export interface Conversation {
   created_at: string
   messages?: Message[]
 }
+
+export type AgentRoute = 'general' | 'expert'
+
+export interface RoutingInfo {
+  route: AgentRoute
+  scholarship_id: string | null
+  scholarship_title: string | null
+}

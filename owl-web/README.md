@@ -28,13 +28,16 @@ Environment (see `../.env.example`), read at build time, must be `VITE_`-prefixe
 - `AuthForm.tsx` — register / log in, toggled from one form.
 - `Chat.tsx` — starts a conversation, then per turn makes **one** request to
   owl-admin and consumes the SSE stream it relays back (owl-admin persists
-  both messages itself). Renders the live token stream and the 👍/👎 feedback
-  buttons under each answer.
+  both messages itself). Renders the live token stream, a "🎓 Consultando la
+  ficha de …" chip when the turn is routed to the scholarship expert, an
+  "Experto en …" label on expert answers (the scholarship name comes from the
+  answer's single citation), and the 👍/👎 feedback buttons.
 - `api.ts` — `sendMessage` is the one non-obvious piece: SSE-_shaped_
   streaming built on `fetch` + a manually-read `ReadableStream`, not the
   native `EventSource` API. `EventSource` is GET-only with no request body or
-  custom headers — this needs both. Events: `user_message`, `token`×N, then
-  `done` (the persisted assistant message) or `error`.
+  custom headers — this needs both. Events: `routing` (which agent took the
+  turn), `user_message`, `token`×N, then `done` (the persisted assistant
+  message) or `error`.
 - `useAuth.ts` — holds the JWT + user in `localStorage` so a reload stays
   logged in.
 

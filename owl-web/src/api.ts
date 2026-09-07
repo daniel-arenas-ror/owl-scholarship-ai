@@ -3,6 +3,7 @@ import type {
   Feedback,
   FeedbackRating,
   Message,
+  RoutingInfo,
   User,
 } from './types'
 
@@ -80,13 +81,15 @@ export function submitFeedback(
 interface SendHandlers {
   onUserMessage: (message: Message) => void
   onToken: (chunk: string) => void
+  onRouting?: (info: RoutingInfo) => void
 }
 
 /**
  * Posts a message to owl-admin and consumes the SSE stream it relays back
- * from owl-api: `user_message` (the persisted user turn), then `token` per
- * chunk of the answer, then `done` (the persisted assistant message) or
- * `error`. Resolves with the persisted assistant `Message`.
+ * from owl-api: `routing` (which agent took the turn), `user_message` (the
+ * persisted user turn), then `token` per chunk of the answer, then `done`
+ * (the persisted assistant message) or `error`. Resolves with the persisted
+ * assistant `Message`.
  *
  * SSE-shaped over `fetch` rather than `EventSource`, which is GET-only with
  * no request body or custom headers — this needs both.
@@ -138,7 +141,9 @@ export async function sendMessage(
           data = JSON.parse(line.slice('data: '.length))
       }
 
-      if (eventName === 'user_message') {
+      if (eventName === 'routing') {
+        handlers.onRouting?.(data as unknown as RoutingInfo)
+      } else if (eventName === 'user_message') {
         handlers.onUserMessage(data as unknown as Message)
       } else if (eventName === 'token' && typeof data.content === 'string') {
         handlers.onToken(data.content)

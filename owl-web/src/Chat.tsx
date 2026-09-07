@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { createConversation, sendMessage, submitFeedback } from './api'
-import type { FeedbackRating, Message, User } from './types'
+import type { FeedbackRating, Message, RoutingInfo, User } from './types'
 
 interface Props {
   token: string
@@ -12,6 +12,7 @@ export function Chat({ token, user, onSignOut }: Props) {
   const [conversationId, setConversationId] = useState<number | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [streamingText, setStreamingText] = useState<string | null>(null)
+  const [routing, setRouting] = useState<RoutingInfo | null>(null)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -36,19 +37,28 @@ export function Chat({ token, user, onSignOut }: Props) {
     setError(null)
     setSending(true)
     setStreamingText('')
+    setRouting(null)
 
     try {
       const assistant = await sendMessage(token, conversationId, content, {
         onUserMessage: (m) => setMessages((prev) => [...prev, m]),
         onToken: (chunk) => setStreamingText((prev) => (prev ?? '') + chunk),
+        onRouting: (info) => setRouting(info),
       })
       setMessages((prev) => [...prev, assistant])
     } catch {
       setError('No se pudo enviar el mensaje. Intenta de nuevo.')
     } finally {
       setStreamingText(null)
+      setRouting(null)
       setSending(false)
     }
+  }
+
+  function expertLabel(m: Message) {
+    if (m.agent !== 'scholarship_expert') return null
+    const title = m.citations[0]?.title
+    return `Experto en ${title ?? 'esta beca'}`
   }
 
   async function handleFeedback(messageId: number, rating: FeedbackRating) {
@@ -102,6 +112,11 @@ export function Chat({ token, user, onSignOut }: Props) {
                   : 'mr-auto bg-owl-50 text-ink'
               }`}
             >
+              {expertLabel(m) && (
+                <p className="mb-1 text-xs font-medium uppercase tracking-wide opacity-70">
+                  🎓 {expertLabel(m)}
+                </p>
+              )}
               <p className="whitespace-pre-wrap">{m.content}</p>
               {m.citations.length > 0 && (
                 <ul className="mt-2 flex flex-col gap-1 border-t border-current/20 pt-2 text-xs opacity-80">
@@ -145,6 +160,12 @@ export function Chat({ token, user, onSignOut }: Props) {
           ))}
           {streamingText !== null && (
             <li className="mr-auto max-w-[85%] rounded-2xl bg-owl-50 px-4 py-2 text-sm text-ink">
+              {routing?.route === 'expert' && (
+                <p className="mb-1 text-xs font-medium uppercase tracking-wide opacity-70">
+                  🎓 Consultando la ficha de{' '}
+                  {routing.scholarship_title ?? 'la beca'}…
+                </p>
+              )}
               <p className="whitespace-pre-wrap">
                 {streamingText}
                 {sending && <span className="animate-pulse">▍</span>}
