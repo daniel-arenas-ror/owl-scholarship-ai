@@ -10,12 +10,20 @@ export interface Citation {
   source_url: string
 }
 
+export type FeedbackRating = 'up' | 'down'
+
+export interface Feedback {
+  rating: FeedbackRating
+  reason: string | null
+}
+
 export interface Message {
   id: number
   role: 'user' | 'assistant'
   content: string
   agent: string | null
   citations: Citation[]
+  feedback?: Feedback | null
   created_at: string
 }
 

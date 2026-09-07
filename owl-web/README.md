@@ -19,25 +19,29 @@ npm run build      # -> dist/
 
 Environment (see `../.env.example`), read at build time, must be `VITE_`-prefixed:
 
-| Var | Meaning |
-| --- | --- |
-| `VITE_ADMIN_API_URL` | Base URL of owl-admin (auth, conversations, feedback). |
-| `VITE_OWL_API_URL` | Base URL of owl-api — unused until Phase 2 wires up direct SSE streaming. |
+| Var                  | Meaning                                                       |
+| -------------------- | ----------------------------------------------------------- |
+| `VITE_ADMIN_API_URL` | Base URL of owl-admin — the only backend the browser talks to. |
 
-## What's here (Phase 1)
+## What's here
 
 - `AuthForm.tsx` — register / log in, toggled from one form.
-- `Chat.tsx` — starts a conversation on load, then a plain request/response
-  loop against owl-admin (no streaming yet — that's Phase 2).
+- `Chat.tsx` — starts a conversation, then per turn makes **one** request to
+  owl-admin and consumes the SSE stream it relays back (owl-admin persists
+  both messages itself). Renders the live token stream and the 👍/👎 feedback
+  buttons under each answer.
+- `api.ts` — `sendMessage` is the one non-obvious piece: SSE-_shaped_
+  streaming built on `fetch` + a manually-read `ReadableStream`, not the
+  native `EventSource` API. `EventSource` is GET-only with no request body or
+  custom headers — this needs both. Events: `user_message`, `token`×N, then
+  `done` (the persisted assistant message) or `error`.
 - `useAuth.ts` — holds the JWT + user in `localStorage` so a reload stays
   logged in.
-- `api.ts` — a thin fetch wrapper for the four owl-admin endpoints this app
-  calls.
 
 ## Styling
 
-Tailwind v4, configured CSS-first in `src/index.css`. The `@theme` block there
-is the shared Owl palette — keep it in sync with
+Tailwind v4, configured CSS-first in `src/index.css`. The `@theme` block there is
+the shared Owl palette — keep it in sync with
 `owl-admin/app/assets/tailwind/application.css`.
 
 ## Testing notes
@@ -46,6 +50,10 @@ is the shared Owl palette — keep it in sync with
 tests, not app bugs: a real `localStorage` (recent Node versions ship their own
 experimental one that shadows jsdom's and is missing methods) and a no-op
 `Element.prototype.scrollIntoView` (jsdom doesn't implement layout at all).
+
+`Chat.test.tsx` fakes the SSE stream with a real `Response`/`ReadableStream`
+pair (both are genuine Node globals here, not mocks) so the actual
+event-parsing loop in `api.ts` runs for real in the test.
 
 ## Production
 
