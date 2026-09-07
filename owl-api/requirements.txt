@@ -10,8 +10,9 @@ pyjwt[crypto]>=2.8,<3.0
 
 # --- Phase 1: retrieval + agent ---
 pgvector>=0.3,<1.0
-langchain-openai>=0.2,<0.3
+langchain-openai>=1.0,<2.0
 langsmith>=0.1,<1.0
 
-# --- added in Phase 4 (multi-agent), kept here for reference ---
-# langgraph>=0.2,<0.3
+# --- Phase 2: streaming + the LangGraph checkpointer ---
+langgraph>=1.0,<2.0
+langgraph-checkpoint-postgres>=3.0,<4.0

@@ -35,12 +35,7 @@ class ScholarshipIngestResult(BaseModel):
     action: Literal["created", "updated", "unchanged"]
 
 
-# --- POST /v1/agent/respond ------------------------------------------------
-class ChatTurn(BaseModel):
-    role: Literal["user", "assistant"]
-    content: str
-
-
+# --- POST /v1/agent/respond (SSE) -------------------------------------------
 class UserContext(BaseModel):
     country: str | None = None
     level: str | None = None
@@ -51,18 +46,4 @@ class AgentRespondRequest(BaseModel):
     conversation_id: str
     thread_id: str
     user_message: str
-    history: list[ChatTurn] = Field(default_factory=list)
     user_context: UserContext = Field(default_factory=UserContext)
-
-
-class Citation(BaseModel):
-    scholarship_id: str
-    title: str
-    source_url: str
-
-
-class AgentRespondResult(BaseModel):
-    message: str
-    citations: list[Citation] = Field(default_factory=list)
-    agent: str = "general_advisor"
-    trace_url: str | None = None

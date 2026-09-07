@@ -1,90 +1,64 @@
-from fastapi import APIRouter, Depends
-from langchain_core.messages import HumanMessage, SystemMessage
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+import json
+from collections.abc import Iterator
 
-from app.config import get_settings
-from app.db import get_session
-from app.db_models import Scholarship, ScholarshipChunk
-from app.embeddings import embed_query
-from app.llm import get_chat_model
-from app.schemas import AgentRespondRequest, AgentRespondResult, Citation
+from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
+from langchain_core.messages import HumanMessage
+
+from app.graph import get_graph
+from app.schemas import AgentRespondRequest
 from app.security import require_service_auth
 
 router = APIRouter(prefix="/v1/agent", tags=["agent"])
 
-SYSTEM_PROMPT = (
-    "Eres Owl, un asistente que ayuda a estudiantes colombianos a encontrar becas. "
-    "Responde en español, de forma breve y concreta, usando únicamente la "
-    "información de becas provista a continuación. Si la información no "
-    "alcanza para responder, dilo con honestidad en vez de inventar datos. "
-    "Responde en texto plano: nada de Markdown (sin **negritas**, sin encabezados "
-    "con #, sin listas con - o 1.) — la interfaz aún no interpreta ese formato."
-)
 
-NO_DATA_MESSAGE = (
-    "Aún no tengo becas cargadas. Cuando el equipo agregue oportunidades podré "
-    "ayudarte a encontrar la más adecuada para tu perfil."
-)
-
-TOP_K = 5
-HISTORY_TURNS = 6
+def _sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
-@router.post("/respond", response_model=AgentRespondResult)
+def _stream_turn(payload: AgentRespondRequest) -> Iterator[str]:
+    graph = get_graph()
+    config = {"configurable": {"thread_id": payload.thread_id}}
+
+    accumulated = ""
+    try:
+        for message_chunk, _metadata in graph.stream(
+            {"messages": [HumanMessage(content=payload.user_message)]},
+            config=config,
+            stream_mode="messages",
+        ):
+            piece = getattr(message_chunk, "content", "") or ""
+            if piece:
+                accumulated += piece
+                yield _sse("token", {"content": piece})
+
+        final = graph.get_state(config).values
+        citations = final.get("citations", [])
+        final_message = final["messages"][-1].content if final.get("messages") else accumulated
+
+        # The graceful "no scholarships yet" path returns one plain message
+        # with no streaming LLM call, so no token event was sent above.
+        if not accumulated and final_message:
+            yield _sse("token", {"content": final_message})
+
+        yield _sse(
+            "done", {"message": final_message, "citations": citations, "agent": "general_advisor"}
+        )
+    except Exception as exc:  # noqa: BLE001 - surface the failure to the client, don't 500 mid-stream
+        yield _sse("error", {"detail": str(exc)})
+
+
+@router.post("/respond")
 def respond(
     payload: AgentRespondRequest,
-    session: Session = Depends(get_session),
     _claims: dict = Depends(require_service_auth),
-) -> AgentRespondResult:
-    """One conversational turn: retrieve the most relevant scholarship chunks
-    from pgvector and answer grounded in them.
+) -> StreamingResponse:
+    """Streams one conversational turn as SSE (event: token* then event: done).
 
-    Phase 2 turns this into an SSE stream; Phase 4 replaces the single call
-    below with a LangGraph supervisor that can hand off to a per-scholarship
-    expert agent.
+    Called only by owl-admin, which relays this stream on to the browser and
+    persists the result. Conversation memory lives in the graph's Postgres
+    checkpointer, keyed by thread_id — the caller doesn't send history. Phase 4
+    replaces the single "answer" node with a supervisor that can hand off to a
+    per-scholarship expert agent.
     """
-    settings = get_settings()
-    has_data = session.scalar(select(func.count()).select_from(Scholarship)) or 0
-
-    if not settings.openai_api_key or not has_data:
-        return AgentRespondResult(message=NO_DATA_MESSAGE, agent="general_advisor")
-
-    query_vector = embed_query(payload.user_message)
-    top_chunks = session.scalars(
-        select(ScholarshipChunk)
-        .order_by(ScholarshipChunk.embedding.cosine_distance(query_vector))
-        .limit(TOP_K)
-    ).all()
-
-    context_blocks: list[str] = []
-    citations: list[Citation] = []
-    seen_ids: set[int] = set()
-    for chunk in top_chunks:
-        s = chunk.scholarship
-        context_blocks.append(f"### {s.title} ({s.provider})\n{chunk.content}")
-        if s.id not in seen_ids:
-            citations.append(
-                Citation(scholarship_id=str(s.id), title=s.title, source_url=s.source_url)
-            )
-            seen_ids.add(s.id)
-
-    history_text = "\n".join(
-        f"{turn.role}: {turn.content}" for turn in payload.history[-HISTORY_TURNS:]
-    )
-
-    messages = [
-        SystemMessage(
-            content=f"{SYSTEM_PROMPT}\n\nBECAS RELEVANTES:\n" + "\n\n".join(context_blocks)
-        ),
-        HumanMessage(
-            content=(
-                f"HISTORIAL RECIENTE:\n{history_text or '(sin historial)'}\n\n"
-                f"PREGUNTA DEL ESTUDIANTE:\n{payload.user_message}"
-            )
-        ),
-    ]
-
-    answer = get_chat_model().invoke(messages)
-
-    return AgentRespondResult(message=answer.content, citations=citations, agent="general_advisor")
+    return StreamingResponse(_stream_turn(payload), media_type="text/event-stream")

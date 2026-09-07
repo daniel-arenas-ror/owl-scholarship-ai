@@ -8,9 +8,6 @@ class Settings(BaseSettings):
 
     environment: str = "development"
 
-    # CORS: comma-separated origins allowed to call this API from a browser
-    owl_web_origins: str = "http://localhost:5173"
-
     # Database
     owl_api_database_url: str = "postgresql+psycopg://owl:owl@localhost:5432/owl_api"
 
