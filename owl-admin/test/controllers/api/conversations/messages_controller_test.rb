@@ -9,12 +9,13 @@ class Api::Conversations::MessagesControllerTest < ActionDispatch::IntegrationTe
 
   test "streams the relayed answer and persists both messages" do
     events = [
+      [ "routing", { "route" => "expert", "scholarship_id" => "3", "scholarship_title" => "Chevening" } ],
       [ "token", { "content" => "Puedes " } ],
       [ "token", { "content" => "considerar Chevening." } ],
       [ "done", {
         "message" => "Puedes considerar Chevening.",
         "citations" => [ { "scholarship_id" => "3", "title" => "Chevening", "source_url" => "https://chevening.org" } ],
-        "agent" => "general_advisor"
+        "agent" => "scholarship_expert"
       } ]
     ]
 
@@ -26,12 +27,14 @@ class Api::Conversations::MessagesControllerTest < ActionDispatch::IntegrationTe
     assert_response :ok
     assert_equal "text/event-stream", response.media_type
     assert_includes response.body, "event: user_message"
+    assert_includes response.body, %(event: routing\ndata: {"route":"expert")
     assert_includes response.body, %(event: token\ndata: {"content":"Puedes "})
     assert_includes response.body, "event: done"
 
     assert_equal 2, @conversation.messages.count
     assistant = @conversation.messages.find_by(role: :assistant)
     assert_equal "Puedes considerar Chevening.", assistant.content
+    assert_equal "scholarship_expert", assistant.agent
     assert_equal 1, assistant.citations.length
   end
 

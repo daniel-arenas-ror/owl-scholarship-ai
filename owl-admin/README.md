@@ -29,7 +29,7 @@ bin/rubocop
 | `DELETE /api/session` | none | Log out (stateless; the client just drops the token). |
 | `POST /api/conversations` | Bearer | Start a conversation for the current user. |
 | `GET /api/conversations/:id` | Bearer | Fetch a conversation with its messages. |
-| `POST /api/conversations/:id/messages` | Bearer | **SSE.** Persists the user turn, relays owl-api's token stream (`user_message`, `token`×N, `done` / `error`), then persists the assembled answer. `ActionController::Live`. |
+| `POST /api/conversations/:id/messages` | Bearer | **SSE.** Persists the user turn, relays owl-api's stream (`user_message`, `routing`, `token`×N, `done` / `error`), then persists the assembled answer with its `agent` (`general_advisor` / `scholarship_expert`). `ActionController::Live`. |
 | `POST /api/messages/:id/feedback` | Bearer | `{ rating: "up" \| "down", reason? }` — one row per message; a second call updates it in place. |
 | `GET /.well-known/jwks.json` | none | Publishes the RSA public key `owl-api` verifies against. |
 
@@ -120,4 +120,7 @@ that job properly. The shortcut is on the owl-api side (see its README).
 - **Phase 3** — `ScholarshipScraper` (above) is the first slice. Still to come:
   GoodJob + a "Run crawl" action, a `Source` model, per-site parsers, and a
   per-run report surfaced in the UI.
+- **Phase 4 (done, mostly in owl-api)** — the graph now routes to a
+  `scholarship_expert` node; owl-admin relays the new `routing` frame and
+  persists `message.agent`. Nothing else changed here.
 - **Phase 5** — the admin dashboards (conversations, satisfaction, inventory).

@@ -20,6 +20,10 @@ class Api::Conversations::MessagesController < Api::BaseController
 
     OwlApiClient.stream(conversation: conversation, user_message: user_message) do |event, data|
       case event
+      when "routing"
+        # which node (general_advisor / scholarship_expert) took the turn —
+        # relayed so the UI can show the hand-off while tokens are still arriving
+        sse("routing", data)
       when "token"
         assembled << data["content"].to_s
         sse("token", data)
