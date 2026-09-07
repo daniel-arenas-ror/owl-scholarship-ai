@@ -1,27 +1,27 @@
-"""Exercises the real pgvector query in app/routers/agent.py. OpenAI calls are
-faked (embed_query, get_chat_model) so this runs in CI with no API key and no
-network — only the database round-trip and the SQL are real.
+"""Exercises the real pgvector query inside app/graph.py's answer_node.
+OpenAI calls are faked (embed_query, get_chat_model) so this runs in CI with
+no API key and no network — only the database round-trip and the SQL are
+real, plus the actual SSE framing of app/routers/agent.py.
 """
 
-import app.routers.agent as agent_module
+import app.graph as graph_module
 from app.config import get_settings
 from app.db import SessionLocal
 from app.db_models import Scholarship, ScholarshipChunk
 from app.main import app
 from app.security import require_service_auth
+from tests.sse_helpers import parse_sse
 
 EMBEDDING_DIMENSIONS = 1536
 CONTENT_HASH = "test-fixture-hash-do-not-reuse"
 
 
-class _FakeMessage:
-    def __init__(self, content):
-        self.content = content
-
-
 class _FakeChatModel:
-    def invoke(self, messages):
-        return _FakeMessage("Respuesta simulada citando la beca de prueba.")
+    def stream(self, messages):
+        from langchain_core.messages import AIMessageChunk
+
+        yield AIMessageChunk(content="Respuesta simulada ")
+        yield AIMessageChunk(content="citando la beca de prueba.")
 
 
 def _seed_one_scholarship():
@@ -60,8 +60,8 @@ def _delete_scholarship(scholarship_id):
 def test_agent_respond_retrieves_and_cites_a_real_match(client, monkeypatch):
     scholarship_id = _seed_one_scholarship()
     try:
-        monkeypatch.setattr(agent_module, "embed_query", lambda text: [0.1] * EMBEDDING_DIMENSIONS)
-        monkeypatch.setattr(agent_module, "get_chat_model", lambda: _FakeChatModel())
+        monkeypatch.setattr(graph_module, "embed_query", lambda text: [0.1] * EMBEDDING_DIMENSIONS)
+        monkeypatch.setattr(graph_module, "get_chat_model", lambda: _FakeChatModel())
         monkeypatch.setattr(get_settings(), "openai_api_key", "test-key-not-real")
 
         app.dependency_overrides[require_service_auth] = lambda: {"sub": "1"}
@@ -70,7 +70,7 @@ def test_agent_respond_retrieves_and_cites_a_real_match(client, monkeypatch):
                 "/v1/agent/respond",
                 json={
                     "conversation_id": "c1",
-                    "thread_id": "t1",
+                    "thread_id": "test-agent-retrieval-match",
                     "user_message": "¿Hay becas de maestría?",
                 },
             )
@@ -78,10 +78,15 @@ def test_agent_respond_retrieves_and_cites_a_real_match(client, monkeypatch):
             app.dependency_overrides.pop(require_service_auth, None)
 
         assert resp.status_code == 200
-        body = resp.json()
-        assert body["message"] == "Respuesta simulada citando la beca de prueba."
-        assert len(body["citations"]) == 1
-        assert body["citations"][0]["scholarship_id"] == str(scholarship_id)
-        assert body["citations"][0]["title"] == "Beca de prueba para maestría"
+        events = parse_sse(resp.text)
+
+        tokens = "".join(data["content"] for name, data in events if name == "token")
+        assert tokens == "Respuesta simulada citando la beca de prueba."
+
+        done = next(data for name, data in events if name == "done")
+        assert done["message"] == "Respuesta simulada citando la beca de prueba."
+        assert len(done["citations"]) == 1
+        assert done["citations"][0]["scholarship_id"] == str(scholarship_id)
+        assert done["citations"][0]["title"] == "Beca de prueba para maestría"
     finally:
         _delete_scholarship(scholarship_id)
