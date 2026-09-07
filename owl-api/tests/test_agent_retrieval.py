@@ -1,13 +1,15 @@
-"""Exercises the real pgvector query inside app/graph.py's answer_node.
-OpenAI calls are faked (embed_query, get_chat_model) so this runs in CI with
-no API key and no network — only the database round-trip and the SQL are
-real, plus the actual SSE framing of app/routers/agent.py.
+"""Exercises the real pgvector query inside the general_advisor node. OpenAI
+calls are faked (embed_query, the chat model, and the router classifier) so this
+runs in CI with no API key and no network — only the database round-trip, the
+SQL, and the SSE framing of app/routers/agent.py are real.
 """
 
 import app.graph as graph_module
+import app.tools as tools_module
 from app.config import get_settings
 from app.db import SessionLocal
 from app.db_models import Scholarship, ScholarshipChunk
+from app.graph import RouteDecision
 from app.main import app
 from app.security import require_service_auth
 from tests.sse_helpers import parse_sse
@@ -60,8 +62,11 @@ def _delete_scholarship(scholarship_id):
 def test_agent_respond_retrieves_and_cites_a_real_match(client, monkeypatch):
     scholarship_id = _seed_one_scholarship()
     try:
-        monkeypatch.setattr(graph_module, "embed_query", lambda text: [0.1] * EMBEDDING_DIMENSIONS)
+        monkeypatch.setattr(tools_module, "embed_query", lambda text: [0.1] * EMBEDDING_DIMENSIONS)
         monkeypatch.setattr(graph_module, "get_chat_model", lambda: _FakeChatModel())
+        monkeypatch.setattr(
+            graph_module, "_classify_route", lambda history: RouteDecision(route="general")
+        )
         monkeypatch.setattr(get_settings(), "openai_api_key", "test-key-not-real")
 
         app.dependency_overrides[require_service_auth] = lambda: {"sub": "1"}
@@ -80,11 +85,16 @@ def test_agent_respond_retrieves_and_cites_a_real_match(client, monkeypatch):
         assert resp.status_code == 200
         events = parse_sse(resp.text)
 
+        routing = next(data for name, data in events if name == "routing")
+        assert routing["route"] == "general"
+
         tokens = "".join(data["content"] for name, data in events if name == "token")
         assert tokens == "Respuesta simulada citando la beca de prueba."
 
         done = next(data for name, data in events if name == "done")
         assert done["message"] == "Respuesta simulada citando la beca de prueba."
+        assert done["agent"] == "general_advisor"
+        assert done["route"] == "general"
         assert len(done["citations"]) == 1
         assert done["citations"][0]["scholarship_id"] == str(scholarship_id)
         assert done["citations"][0]["title"] == "Beca de prueba para maestría"

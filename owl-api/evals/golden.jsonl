@@ -1,0 +1,13 @@
+{"id": "gen-maestria-ingenieria", "question": "Busco becas para una maestría en ingeniería en el exterior, ¿qué opciones tengo?", "expected_route": "general"}
+{"id": "gen-doctorado-ciencias-co", "question": "¿Qué becas hay para hacer un doctorado en ciencias en Colombia?", "expected_route": "general", "expected_scholarship": "MinCiencias", "must_mention": ["MinCiencias"]}
+{"id": "gen-alemania", "question": "Quiero estudiar en Alemania, ¿hay becas?", "expected_route": "general", "expected_scholarship": "DAAD", "must_mention": ["DAAD"]}
+{"id": "gen-francia", "question": "Opciones para una maestría en Francia con financiación", "expected_route": "general", "expected_scholarship": "Eiffel"}
+{"id": "gen-eeuu", "question": "Me gustaría hacer un posgrado en Estados Unidos", "expected_route": "general", "expected_scholarship": "Fulbright"}
+{"id": "gen-compara", "question": "Compara Chevening y Fulbright, ¿cuál me conviene?", "expected_route": "general"}
+{"id": "gen-sin-idea", "question": "No sé qué beca me conviene, ¿me ayudas a decidir?", "expected_route": "general"}
+{"id": "exp-chevening-requisitos", "question": "¿Cuáles son los requisitos de la beca Chevening?", "expected_route": "expert", "expected_scholarship": "Chevening", "must_mention": ["Chevening"]}
+{"id": "exp-daad-cuentame", "question": "Cuéntame sobre la beca DAAD", "expected_route": "expert", "expected_scholarship": "DAAD", "must_mention": ["DAAD"]}
+{"id": "exp-eiffel-cubre", "question": "¿Qué cubre la Beca Eiffel Excellence?", "expected_route": "expert", "expected_scholarship": "Eiffel", "must_mention": ["Eiffel"]}
+{"id": "exp-colfuturo", "question": "Háblame del Crédito Beca Colfuturo", "expected_route": "expert", "expected_scholarship": "Colfuturo", "must_mention": ["Colfuturo"]}
+{"id": "exp-erasmus", "question": "Dame detalles del programa Erasmus Mundus", "expected_route": "expert", "expected_scholarship": "Erasmus"}
+{"id": "exp-chevening-elegibilidad", "question": "¿Puedo aplicar a Chevening?", "user_context": {"level": "maestría", "country": "CO"}, "expected_route": "expert", "expected_scholarship": "Chevening"}
