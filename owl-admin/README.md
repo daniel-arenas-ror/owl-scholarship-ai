@@ -61,6 +61,33 @@ chunks, embeds, and stores it in owl-api's pgvector. Needs a real
 `OPENAI_API_KEY` in `.env` — owl-api returns 503 without one. Idempotent: a
 second run reports `unchanged` for anything whose content hasn't changed.
 
+## Scraping one scholarship by URL
+
+`app/services/scholarship_scraper.rb` — a plain object, run by hand from the
+console for now (a later phase wraps it in a GoodJob job + a `Source` model to
+re-run on a schedule):
+
+```ruby
+# docker compose exec admin bin/rails console
+ScholarshipScraper.new("https://www.chevening.org/scholarship/colombia/").scrape
+# => { scholarship_id: "9", chunks: 5, action: "created" }
+
+ScholarshipScraper.new(url).scrape(dry_run: true)      # normalize only, print the payload, no POST
+ScholarshipScraper.new(url, html: "<html>…").scrape    # skip the fetch, feed HTML directly
+```
+
+It fetches the page (`Net::HTTP`, follows up to 3 redirects, HTML-only), does
+**generic** readability-style extraction — strips `script`/`nav`/`footer`/etc.,
+keeps headings as `#` and list items as `-` — and builds the same ingest
+payload the seed task uses: `source` (the host), `source_url`, `title` /
+`provider` (from `og:` meta, falling back to the host), `body_markdown`,
+`content_hash` (SHA-256 of the body). `fields` / `levels` are left empty —
+there is no per-site parser and no LLM extraction here. Then it calls
+`OwlApiClient.ingest`, so the same `created` / `updated` / `unchanged` dedupe
+by `content_hash` applies. Raises `ScholarshipScraper::Error` on a bad URL, a
+non-HTML response, or a body too short to be real content (JS-only shells and
+bot walls trip this).
+
 ## Environment
 
 | Var | Meaning |
@@ -90,5 +117,7 @@ that job properly. The shortcut is on the owl-api side (see its README).
 
 ## Roadmap
 
-- **Phase 3** — GoodJob + the "Run crawl" action and `Source` model.
+- **Phase 3** — `ScholarshipScraper` (above) is the first slice. Still to come:
+  GoodJob + a "Run crawl" action, a `Source` model, per-site parsers, and a
+  per-run report surfaced in the UI.
 - **Phase 5** — the admin dashboards (conversations, satisfaction, inventory).
