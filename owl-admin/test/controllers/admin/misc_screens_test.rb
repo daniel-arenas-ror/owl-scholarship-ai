@@ -14,12 +14,9 @@ class Admin::MiscScreensTest < ActionDispatch::IntegrationTest
     assert_match @admin.email, response.body
   end
 
-  test "sources index shows record counts and lets you toggle enabled" do
+  test "sources index shows scholarship counts and lets you toggle enabled" do
     source = Source.for_url("https://icetex.gov.co/x")
-    ScholarshipRecord.upsert_from_payload(
-      "source_url" => "https://icetex.gov.co/x", "title" => "B", "provider" => "P",
-      "country" => "CO", "fields" => [], "levels" => [], "body_markdown" => "texto suficiente aquí"
-    )
+    create_scholarship(source: "icetex.gov.co", source_url: "https://icetex.gov.co/x", title: "Beca ICETEX")
 
     get admin_sources_path
     assert_response :success

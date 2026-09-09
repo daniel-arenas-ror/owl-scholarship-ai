@@ -2,15 +2,43 @@ ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rails/test_help"
 
+# owl-admin reads owl-api's `scholarships` table over a second connection that
+# Rails doesn't manage (database_tasks: false). Make sure the table exists in
+# the test DB — created here, not by a migration.
+OwlApiRecord.connection.execute(File.read(Rails.root.join("test/support/owl_api_schema.sql")))
+
 module ActiveSupport
   class TestCase
-    # Run tests in parallel with specified workers
-    parallelize(workers: :number_of_processors)
+    # Single process: the `owl_api` connection (owl-api's DB, read directly) has
+    # no per-worker copy, so parallel workers would fight over it. The suite is
+    # small enough that serial is fine.
+    parallelize(workers: 1)
 
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
-    # Add more helper methods to be used by all tests here...
+    # owl-api's `scholarships` table is shared across parallel workers (no
+    # per-worker copy), so each test cleans up exactly the rows it made.
+    teardown do
+      Scholarship.where(id: @_created_scholarships).delete_all if @_created_scholarships.present?
+    end
+
+    # Build a Scholarship fixture in owl-api's table with sane defaults.
+    def create_scholarship(**attrs)
+      record = Scholarship.create!({
+        source: "example.com",
+        source_url: "https://example.com/#{SecureRandom.hex(6)}",
+        title: "Beca de prueba",
+        provider: "Proveedor de prueba",
+        country: "CO",
+        fields: [],
+        levels: [ "maestría" ],
+        body_markdown: "Cuerpo de la beca con suficiente texto de relleno.",
+        content_hash: SecureRandom.hex(16)
+      }.merge(attrs))
+      (@_created_scholarships ||= []) << record.id
+      record
+    end
   end
 end
 
