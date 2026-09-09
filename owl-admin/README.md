@@ -41,9 +41,19 @@ bin/rubocop
 Two JWT audiences, both signed RS256 by `JwtService`: `aud: "owl-admin"` for the
 browser's session (`Authorization: Bearer <token>` on every `/api` call), and a
 5-minute `aud: "owl-api"` token `OwlApiClient` mints per outbound call. The
-browser only ever talks to owl-admin; owl-admin is owl-api's only client
+browser only ever talks to owl-admin; owl-admin is owl-api's only HTTP client
 (streaming a turn, or `.ingest` from `scholarships:seed`, the scraper, and the
-admin "Enviar a owl-api" button).
+admin scholarship edit form).
+
+### Shared database: the `scholarships` table
+
+There is **one** scholarship table in the whole system — owl-api's — and
+owl-admin reads it directly over a second connection (`owl_api` in
+`config/database.yml`, `database_tasks: false` so Rails never migrates it). The
+`Scholarship` model (`< OwlApiRecord`) is read-only in practice: edits are sent
+back through `OwlApiClient.ingest` so owl-api re-chunks and re-embeds. No local
+copy, no sync state. `OWL_API_DATABASE_URL` points at it (a plain `postgres://`
+URL — owl-api itself uses the `postgresql+psycopg://` form).
 
 ## Seeding scholarships
 
@@ -76,37 +86,37 @@ Session-cookie auth (`Admin::SessionsController`, no Devise views), gated to
 | `/admin` | Headline counts + 👍 ratio + recent conversations. |
 | `/admin/conversations`, `/admin/conversations/:id` | Every transcript, with the agent that answered, citations, the 👍/👎, a **trace ↗** link to LangSmith (`message.trace_run_id`), and an inline **annotation** form. |
 | `/admin/satisfaction` | 👍 ratio overall, by agent, by cited scholarship, over time — Chartkick + Chart.js, pinned via importmap (no build step). |
-| `/admin/scholarships`, `/admin/scholarships/:id` | The local `ScholarshipRecord` inventory. Edit any wire field, then **Enviar a owl-api** re-ingests it. |
-| `/admin/sources` | Source-health panel — record count, last scrape, last status; toggle `enabled`. |
+| `/admin/scholarships`, `/admin/scholarships/:id` | owl-api's `scholarships` table, read directly. Edit any wire field → owl-admin sends it to `OwlApiClient.ingest`, which re-chunks + re-embeds. |
+| `/admin/sources` | Source-health panel — scholarship count (per host), last scrape, last status; toggle `enabled`. `Source` is owl-admin-only. |
 | `/admin/users` | Users + conversation counts. |
 | `/admin/messages/:id/annotation` | `Annotation` upsert — verdict (`good`/`bad`) + the ideal reply. The Phase 6 fine-tuning corpus. |
 
-### Scholarship inventory + the scraper
+### The scraper
 
-`ScholarshipRecord` is owl-admin's canonical copy of a scholarship; owl-api keeps
-only the vectorized copy. **Records are created only by the scraper** —
-`app/services/scholarship_scraper.rb`:
+`app/services/scholarship_scraper.rb` — fetches one page and pushes it to
+owl-api's ingest endpoint. There is no local copy; owl-api's `scholarships`
+table is the only store.
 
 ```ruby
 # docker compose exec admin bin/rails console
 ScholarshipScraper.new("https://www.chevening.org/scholarship/colombia/").scrape
-# => #<ScholarshipRecord id: 1, last_push_status: "created", ...>
+# => { scholarship_id: "9", chunks: 5, action: "created" }
 
 ScholarshipScraper.new(url).scrape(dry_run: true)    # extract only, no writes
 ScholarshipScraper.new(url, html: "<html>…").scrape  # skip the fetch
 ```
 
-It fetches the page (`Net::HTTP`, ≤3 redirects, HTML-only), does **generic**
+Fetches the page (`Net::HTTP`, ≤3 redirects, HTML-only), does **generic**
 readability extraction (strips `script`/`nav`/`footer`/…, headings → `#`, list
-items → `-`), `upsert`s a `ScholarshipRecord` keyed by `source_url`, links a
-`Source` (found/created by host), then `push_to_owl_api!` — chunk + embed +
-store. `fields` / `levels` come back empty (no per-site parser, no LLM): fill
-them in the admin edit form. Raises `ScholarshipScraper::Error` on a bad URL, a
-non-HTML response, or a body too short to be real content.
+items → `-`), `POST`s to `/v1/scholarships/ingest`, and stamps the matching
+`Source` row (`last_scraped_at` / `last_status`). `fields` / `levels` come back
+empty (no per-site parser, no LLM): fill them in the admin edit form. Raises
+`ScholarshipScraper::Error` on a bad URL, a non-HTML response, or a body too
+short to be real content.
 
-`ScholarshipRecord#content_hash` is a digest of **every** wire field, so any
-edit flips the record to "cambios sin enviar" until you push. owl-api dedupes on
-that same hash (`created` / `updated` / `unchanged`).
+owl-api computes `content_hash` from the wire fields when the caller omits it,
+so any edited field re-triggers a re-embed; identical content returns
+`unchanged`.
 
 ## Environment
 
@@ -114,7 +124,8 @@ that same hash (`created` / `updated` / `unchanged`).
 | --- | --- |
 | `DATABASE_URL` | Postgres connection (development / production). |
 | `TEST_DATABASE_URL` | Postgres connection for the test suite. |
-| `OWL_API_URL` | Base URL of owl-api for server-to-server calls. |
+| `OWL_API_URL` | Base URL of owl-api for server-to-server HTTP calls. |
+| `OWL_API_DATABASE_URL` / `OWL_API_TEST_DATABASE_URL` | owl-api's Postgres — owl-admin reads the `scholarships` table from it directly (plain `postgres://` URL). |
 | `OWL_WEB_ORIGINS` | Comma-separated CORS allow-list (defaults to the Vite dev server). |
 | `LANGSMITH_HOST` / `LANGSMITH_PROJECT` | Only used to build the transcript's "trace ↗" links — match owl-api's project. |
 | `ADMIN_PASSWORD` | Password for the `admin@example.com` account `db/seeds.rb` creates (default `password123`). |
@@ -143,9 +154,10 @@ that job properly. The shortcut is on the owl-api side (see its README).
 
 ## Roadmap
 
-- **Phase 3** — `ScholarshipScraper` + `ScholarshipRecord` + `Source` exist
-  (built with Phase 5). Still to come: GoodJob + a "Run crawl" action, per-site
-  parsers, a scheduled crawl, and a per-run report.
+- **Phase 3** — `ScholarshipScraper` + a `Source` model exist. Still to come:
+  GoodJob + a "Run crawl" action, per-site parsers, a scheduled crawl, and a
+  per-run report. (A local `ScholarshipRecord` copy was built in Phase 5 then
+  removed — one shared `scholarships` table instead.)
 - **Phase 4 (done, mostly in owl-api)** — the graph routes to a
   `scholarship_expert` node; owl-admin relays the `routing` frame and persists
   `message.agent`.
