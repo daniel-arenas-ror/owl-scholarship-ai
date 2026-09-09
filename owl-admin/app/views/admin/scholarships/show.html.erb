@@ -1,33 +1,30 @@
-<% content_for :title, @record.title %>
+<% content_for :title, @scholarship.title %>
 
 <div class="mb-6 flex items-start justify-between gap-4">
   <div>
-    <h1 class="font-display text-2xl font-semibold"><%= @record.title %></h1>
-    <p class="text-sm text-muted"><%= @record.provider %> · <%= sync_badge(@record) %></p>
+    <h1 class="font-display text-2xl font-semibold"><%= @scholarship.title %></h1>
+    <p class="text-sm text-muted"><%= @scholarship.provider %> · <%= @scholarship.source %></p>
   </div>
   <%= link_to "← Inventario", admin_scholarships_path, class: "text-sm text-owl-600 underline" %>
 </div>
 
 <div class="flex flex-wrap gap-2">
-  <%= link_to "Editar", edit_admin_scholarship_path(@record),
-        class: "rounded-lg border border-owl-100 px-3 py-1.5 text-sm hover:bg-owl-50" %>
-  <%= button_to "Enviar a owl-api", push_admin_scholarship_path(@record), method: :post,
-        class: "rounded-lg bg-owl-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-owl-600",
-        disabled: @record.synced? %>
-  <%= link_to "Página original ↗", @record.source_url, target: "_blank", rel: "noopener",
+  <%= link_to "Editar", edit_admin_scholarship_path(@scholarship),
+        class: "rounded-lg bg-owl-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-owl-600" %>
+  <%= link_to "Página original ↗", @scholarship.source_url, target: "_blank", rel: "noopener",
         class: "rounded-lg border border-owl-100 px-3 py-1.5 text-sm hover:bg-owl-50" %>
 </div>
 
 <dl class="mt-6 grid gap-x-6 gap-y-2 rounded-xl border border-owl-100 bg-white p-4 text-sm sm:grid-cols-2">
   <% {
-    "País" => @record.country,
-    "Niveles" => @record.levels.join(", ").presence || "—",
-    "Áreas" => @record.fields.join(", ").presence || "—",
-    "Financiación" => @record.funding_type.presence || "—",
-    "Monto" => @record.amount_note.presence || "—",
-    "Fecha límite" => @record.deadline.presence || "—",
-    "owl-api id" => @record.owl_api_scholarship_id.presence || "—",
-    "Último envío" => (@record.last_pushed_at ? "#{l(@record.last_pushed_at, format: :short)} (#{@record.last_push_status})" : "nunca")
+    "owl-api id" => @scholarship.id,
+    "País" => @scholarship.country,
+    "Niveles" => Array(@scholarship.levels).join(", ").presence || "—",
+    "Áreas" => Array(@scholarship.fields).join(", ").presence || "—",
+    "Financiación" => @scholarship.funding_type.presence || "—",
+    "Monto" => @scholarship.amount_note.presence || "—",
+    "Fecha límite" => @scholarship.deadline.presence || "—",
+    "Vista por última vez" => (@scholarship.last_seen_at ? l(@scholarship.last_seen_at, format: :short) : "—")
   }.each do |label, value| %>
     <div class="flex justify-between gap-4 border-b border-owl-50 py-1 last:border-0">
       <dt class="text-muted"><%= label %></dt>
@@ -36,16 +33,10 @@
   <% end %>
 </dl>
 
-<% if @record.last_push_status == "error" && @record.last_push_error.present? %>
-  <p class="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
-    Último error de envío: <%= @record.last_push_error %>
-  </p>
-<% end %>
-
-<% if @record.eligibility_text.present? %>
+<% if @scholarship.eligibility_text.present? %>
   <h2 class="mt-6 mb-1 text-sm font-semibold uppercase tracking-wide text-muted">Elegibilidad</h2>
-  <p class="whitespace-pre-wrap rounded-xl border border-owl-100 bg-white p-4 text-sm"><%= @record.eligibility_text %></p>
+  <p class="whitespace-pre-wrap rounded-xl border border-owl-100 bg-white p-4 text-sm"><%= @scholarship.eligibility_text %></p>
 <% end %>
 
 <h2 class="mt-6 mb-1 text-sm font-semibold uppercase tracking-wide text-muted">Contenido</h2>
-<pre class="overflow-x-auto whitespace-pre-wrap rounded-xl border border-owl-100 bg-white p-4 text-xs"><%= @record.body_markdown %></pre>
+<pre class="overflow-x-auto whitespace-pre-wrap rounded-xl border border-owl-100 bg-white p-4 text-xs"><%= @scholarship.body_markdown %></pre>

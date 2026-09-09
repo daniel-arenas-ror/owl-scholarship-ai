@@ -1,15 +1,15 @@
-<% content_for :title, "Editar · #{@record.title}" %>
+<% content_for :title, "Editar · #{@scholarship.title}" %>
 
 <div class="mb-6 flex items-center justify-between">
   <h1 class="font-display text-2xl font-semibold">Editar beca</h1>
-  <%= link_to "← Cancelar", admin_scholarship_path(@record), class: "text-sm text-owl-600 underline" %>
+  <%= link_to "← Cancelar", admin_scholarship_path(@scholarship), class: "text-sm text-owl-600 underline" %>
 </div>
 
-<%= form_with model: @record, url: admin_scholarship_path(@record), method: :patch,
-      scope: :scholarship_record, class: "flex flex-col gap-4" do |f| %>
-  <% if @record.errors.any? %>
+<%= form_with model: @scholarship, url: admin_scholarship_path(@scholarship), method: :patch,
+      scope: :scholarship, class: "flex flex-col gap-4" do |f| %>
+  <% if @scholarship.errors.any? %>
     <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
-      <%= @record.errors.full_messages.to_sentence %>
+      <%= @scholarship.errors.full_messages.to_sentence %>
     </div>
   <% end %>
 
@@ -31,12 +31,12 @@
 
   <label class="flex flex-col gap-1 text-sm">
     Niveles (uno por línea o separados por comas)
-    <%= f.text_area :levels_text, value: @record.levels.join("\n"), rows: 2,
+    <%= f.text_area :levels_text, value: Array(@scholarship.levels).join("\n"), rows: 2,
           class: "rounded-lg border border-owl-100 px-3 py-2 outline-none focus:border-owl-500" %>
   </label>
   <label class="flex flex-col gap-1 text-sm">
     Áreas (una por línea o separadas por comas)
-    <%= f.text_area :fields_text, value: @record.fields.join("\n"), rows: 2,
+    <%= f.text_area :fields_text, value: Array(@scholarship.fields).join("\n"), rows: 2,
           class: "rounded-lg border border-owl-100 px-3 py-2 outline-none focus:border-owl-500" %>
   </label>
 

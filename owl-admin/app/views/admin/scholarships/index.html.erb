@@ -1,19 +1,9 @@
 <% content_for :title, "Becas" %>
 
-<div class="mb-6 flex items-center justify-between">
-  <h1 class="font-display text-2xl font-semibold">Inventario de becas</h1>
-  <div class="text-sm">
-    <%= link_to "Todas", admin_scholarships_path,
-          class: params[:filter] == "pending" ? "text-owl-600 underline" : "font-medium" %>
-    ·
-    <%= link_to "Con cambios sin enviar (#{@pending_total})", admin_scholarships_path(filter: "pending"),
-          class: params[:filter] == "pending" ? "font-medium" : "text-owl-600 underline" %>
-  </div>
-</div>
-
-<p class="mb-4 text-sm text-muted">
-  Estas son copias locales. Se crean solo con el scraper; aquí puedes editarlas y
-  reenviarlas a owl-api.
+<h1 class="mb-2 font-display text-2xl font-semibold">Inventario de becas</h1>
+<p class="mb-6 text-sm text-muted">
+  La única tabla de becas del sistema (la de owl-api). Se crean con el scraper;
+  aquí puedes editarlas y owl-api las vuelve a trocear y embeber.
 </p>
 
 <div class="overflow-x-auto rounded-xl border border-owl-100 bg-white">
@@ -22,25 +12,25 @@
       <tr>
         <th class="px-4 py-2">Beca</th>
         <th class="px-4 py-2">Fuente</th>
-        <th class="px-4 py-2">Sincronización</th>
+        <th class="px-4 py-2">Niveles</th>
         <th class="px-4 py-2">Actualizada</th>
       </tr>
     </thead>
     <tbody class="divide-y divide-owl-100">
-      <% @records.each do |record| %>
+      <% @scholarships.each do |scholarship| %>
         <tr class="hover:bg-owl-50">
           <td class="px-4 py-2">
-            <%= link_to record.title, admin_scholarship_path(record), class: "text-owl-600 underline" %>
-            <p class="text-xs text-muted"><%= record.provider %></p>
+            <%= link_to scholarship.title, admin_scholarship_path(scholarship), class: "text-owl-600 underline" %>
+            <p class="text-xs text-muted"><%= scholarship.provider %></p>
           </td>
-          <td class="px-4 py-2 text-muted"><%= record.source&.host || "—" %></td>
-          <td class="px-4 py-2"><%= sync_badge(record) %></td>
-          <td class="px-4 py-2 text-muted"><%= l(record.updated_at, format: :short) %></td>
+          <td class="px-4 py-2 text-muted"><%= scholarship.source %></td>
+          <td class="px-4 py-2 text-muted"><%= Array(scholarship.levels).join(", ").presence || "—" %></td>
+          <td class="px-4 py-2 text-muted"><%= l(scholarship.updated_at, format: :short) %></td>
         </tr>
       <% end %>
     </tbody>
   </table>
-  <% if @records.empty? %>
-    <p class="px-4 py-3 text-sm text-muted">Nada en el inventario todavía.</p>
+  <% if @scholarships.empty? %>
+    <p class="px-4 py-3 text-sm text-muted">Nada en el inventario todavía — corre el scraper sobre una URL.</p>
   <% end %>
 </div>
