@@ -1,9 +1,23 @@
-# This file should ensure the existence of records required to run the application in every environment (production,
-# development, test). The code here should be idempotent so that it can be executed at any point in every environment.
-# The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
+# Idempotent seed data for local development.
 #
-# Example:
-#
-#   ["Action", "Comedy", "Drama", "Horror"].each do |genre_name|
-#     MovieGenre.find_or_create_by!(name: genre_name)
-#   end
+#   bin/rails db:seed
+#   (or: make console -> load "#{Rails.root}/db/seeds.rb")
+
+admin = User.find_or_initialize_by(email: "admin@example.com")
+if admin.new_record?
+  admin.password = ENV.fetch("ADMIN_PASSWORD", "password123")
+  admin.role = :admin
+  admin.save!
+  puts "created admin user admin@example.com"
+else
+  admin.update!(role: :admin)
+  puts "admin@example.com already exists"
+end
+
+student = User.find_or_initialize_by(email: "maria@example.com")
+if student.new_record?
+  student.password = "password123"
+  student.role = :student
+  student.save!
+  puts "created student user maria@example.com"
+end
