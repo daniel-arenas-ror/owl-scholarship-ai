@@ -33,6 +33,7 @@ from app.db import SessionLocal
 from app.db_models import Scholarship
 from app.llm import get_chat_model, get_router_model
 from app.tools import check_eligibility, get_scholarship_detail, search_scholarships
+# TODO: add the ability to remenver the user implementing InMemoryStore
 
 GENERAL_SYSTEM_PROMPT = (
     "Eres Owl, un asistente que ayuda a estudiantes colombianos a encontrar becas. "
