@@ -25,6 +25,9 @@ gem "rack-cors"
 
 # User accounts [https://github.com/heartcombo/devise]
 gem "devise"
+# Charts for the admin dashboards [https://chartkick.com] — ships its own JS,
+# pinned via importmap (no build step).
+gem "chartkick"
 # Sign / verify the RS256 JWTs owl-admin issues for owl-web and owl-api
 gem "jwt"
 
