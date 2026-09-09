@@ -1,10 +1,8 @@
 class Admin::ScholarshipsController < Admin::BaseController
-  before_action :set_record, only: [ :show, :edit, :update, :push ]
+  before_action :set_scholarship, only: [ :show, :edit, :update ]
 
   def index
-    @records = ScholarshipRecord.includes(:source).recently_scraped
-    @records = @records.pending_push if params[:filter] == "pending"
-    @pending_total = ScholarshipRecord.pending_push.count
+    @scholarships = Scholarship.recent
   end
 
   def show
@@ -13,33 +11,32 @@ class Admin::ScholarshipsController < Admin::BaseController
   def edit
   end
 
+  # Editing writes through owl-api's ingest endpoint (re-chunk + re-embed), not
+  # straight to the table — so the row and its vectors never drift apart.
   def update
-    if @record.update(record_params)
-      redirect_to admin_scholarship_path(@record),
-        notice: "Guardado. Pulsa «Enviar a owl-api» para sincronizar el cambio."
-    else
-      flash.now[:alert] = @record.errors.full_messages.to_sentence
-      render :edit, status: :unprocessable_entity
-    end
-  end
+    @scholarship.assign_attributes(scholarship_params)
 
-  # Re-ingest the current state into owl-api (re-chunk + re-embed).
-  def push
-    @record.push_to_owl_api!
-    redirect_to admin_scholarship_path(@record), notice: "Enviado a owl-api (#{@record.last_push_status})."
+    unless @scholarship.valid?
+      flash.now[:alert] = @scholarship.errors.full_messages.to_sentence
+      return render(:edit, status: :unprocessable_entity)
+    end
+
+    result = OwlApiClient.ingest(@scholarship.to_ingest_payload)
+    redirect_to admin_scholarship_path(@scholarship), notice: "Enviado a owl-api (#{result[:action]})."
   rescue OwlApiClient::Error => e
-    redirect_to admin_scholarship_path(@record), alert: "owl-api rechazó el envío: #{e.message}"
+    flash.now[:alert] = "owl-api rechazó el cambio: #{e.message}"
+    render :edit, status: :unprocessable_entity
   end
 
   private
 
-  def set_record
-    @record = ScholarshipRecord.find(params[:id])
+  def set_scholarship
+    @scholarship = Scholarship.find(params[:id])
   end
 
-  def record_params
-    permitted = params.require(:scholarship_record).permit(
-      *(ScholarshipRecord::EDITABLE_ATTRIBUTES - %w[fields levels]),
+  def scholarship_params
+    permitted = params.require(:scholarship).permit(
+      *(Scholarship::EDITABLE_ATTRIBUTES - %w[fields levels]),
       :fields_text, :levels_text
     )
     permitted[:fields] = split_list(permitted.delete(:fields_text)) if permitted.key?(:fields_text)

@@ -1,10 +1,7 @@
 class Admin::SourcesController < Admin::BaseController
   def index
-    @sources = Source
-      .left_joins(:scholarship_records)
-      .select("sources.*, COUNT(scholarship_records.id) AS records_count")
-      .group("sources.id")
-      .order("sources.name")
+    @sources = Source.order(:name)
+    @record_counts = Scholarship.group(:source).count # { host => n }
   end
 
   def update

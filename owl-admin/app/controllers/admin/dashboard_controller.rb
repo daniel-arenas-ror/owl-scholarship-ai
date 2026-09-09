@@ -11,8 +11,7 @@ class Admin::DashboardController < Admin::BaseController
     @rated_total = @thumbs_up + @thumbs_down
 
     @annotations_total = Annotation.count
-    @scholarships_total = ScholarshipRecord.count
-    @scholarships_pending = ScholarshipRecord.pending_push.count
+    @scholarships_total = Scholarship.count
     @sources_total = Source.count
     @sources_unhealthy = Source.where.not(last_status: [ nil, "ok" ]).count
 
