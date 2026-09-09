@@ -25,7 +25,9 @@ class ScholarshipIngest(BaseModel):
     deadline: str | None = None
     eligibility_text: str | None = None
     body_markdown: str
-    content_hash: str
+    # Optional: owl-api computes it from the wire fields when the caller omits
+    # it, so any edited field triggers a re-embed.
+    content_hash: str | None = None
     last_seen_at: datetime | None = None
 
 

@@ -38,7 +38,7 @@ CORS, and the one trust boundary is a valid RS256 JWT from owl-admin
 | Route | Purpose |
 | --- | --- |
 | `GET /health` | `{ status, database }`. |
-| `POST /v1/scholarships/ingest` | Upsert by `content_hash`: chunk `body_markdown`, embed each chunk with OpenAI, store the vectors in pgvector. 503 if `OPENAI_API_KEY` isn't set. |
+| `POST /v1/scholarships/ingest` | Upsert a scholarship: chunk `body_markdown`, embed each chunk with OpenAI, store the vectors in pgvector. Dedupes on `content_hash` — computed from the wire fields when the caller omits it, so any edited field re-triggers a re-embed. 503 if `OPENAI_API_KEY` isn't set. |
 | `POST /v1/agent/respond` | **SSE.** Runs one turn of `app/graph.py` and streams it: one `event: routing` (`{ route, scholarship_id, scholarship_title }` — which node took the turn), then `event: token` per chunk, then one `event: done` carrying `{ message, citations, agent, route, run_id, scholarship? }`. `run_id` is the LangSmith root-run id (owl-api sets it, owl-admin persists it for the trace link). `event: error` if something breaks mid-stream. owl-admin relays this stream on to the browser. |
 
 Conversation memory lives in the graph's own Postgres checkpointer, keyed by

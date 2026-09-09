@@ -1,3 +1,5 @@
+import hashlib
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -11,6 +13,29 @@ from app.schemas import ScholarshipIngest, ScholarshipIngestResult
 from app.security import require_service_auth
 
 router = APIRouter(prefix="/v1/scholarships", tags=["scholarships"])
+
+# Fields that make a scholarship "the same" for dedupe purposes. If any changes,
+# content_hash changes and the row is re-chunked + re-embedded.
+_HASH_SCALAR_FIELDS = (
+    "source",
+    "source_url",
+    "external_id",
+    "title",
+    "provider",
+    "country",
+    "funding_type",
+    "amount_note",
+    "deadline",
+    "eligibility_text",
+    "body_markdown",
+)
+
+
+def _content_hash(payload: ScholarshipIngest) -> str:
+    parts = [str(getattr(payload, field) or "") for field in _HASH_SCALAR_FIELDS]
+    parts.append("\x1f".join(payload.fields or []))
+    parts.append("\x1f".join(payload.levels or []))
+    return hashlib.sha256("\x1e".join(parts).encode()).hexdigest()
 
 
 @router.post("/ingest", response_model=ScholarshipIngestResult)
@@ -27,8 +52,10 @@ def ingest(
             detail="OPENAI_API_KEY is not configured — set it before ingesting.",
         )
 
+    effective_hash = payload.content_hash or _content_hash(payload)
+
     unchanged = session.scalar(
-        select(Scholarship).where(Scholarship.content_hash == payload.content_hash)
+        select(Scholarship).where(Scholarship.content_hash == effective_hash)
     )
     if unchanged:
         return ScholarshipIngestResult(
@@ -54,7 +81,7 @@ def ingest(
     scholarship.deadline = payload.deadline
     scholarship.eligibility_text = payload.eligibility_text
     scholarship.body_markdown = payload.body_markdown
-    scholarship.content_hash = payload.content_hash
+    scholarship.content_hash = effective_hash
     scholarship.last_seen_at = payload.last_seen_at
 
     scholarship.chunks.clear()  # cascade delete-orphan drops the old rows on flush
