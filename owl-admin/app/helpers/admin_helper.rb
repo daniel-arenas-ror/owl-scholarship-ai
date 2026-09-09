@@ -20,14 +20,4 @@ module AdminHelper
     label = agent == "scholarship_expert" ? "🎓 experto" : "asesor"
     tag.span(label, class: "rounded bg-owl-50 px-1.5 py-0.5 text-xs text-owl-700")
   end
-
-  def sync_badge(record)
-    if record.last_push_status == "error"
-      tag.span("error", class: "rounded bg-red-100 px-1.5 py-0.5 text-xs text-red-800")
-    elsif record.pending_push?
-      tag.span("cambios sin enviar", class: "rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800")
-    else
-      tag.span("sincronizada", class: "rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-800")
-    end
-  end
 end
