@@ -80,6 +80,9 @@ jobs:
     env:
       DATABASE_URL: postgres://owl:owl@localhost:5432/owl_admin
       TEST_DATABASE_URL: postgres://owl:owl@localhost:5432/owl_admin_test
+      # owl-admin reads owl-api's scholarships table; the test suite creates the
+      # table it needs inside this DB (see test/support/owl_api_schema.sql).
+      OWL_API_TEST_DATABASE_URL: postgres://owl:owl@localhost:5432/owl_api_test
       RAILS_ENV: test
     steps:
       - uses: actions/checkout@v4
@@ -87,6 +90,7 @@ jobs:
         with:
           working-directory: owl-admin
           bundler-cache: true
+      - run: PGPASSWORD=owl createdb -h localhost -U owl owl_api_test
       - run: bin/rails db:prepare
       - run: bin/rails test
       - run: bin/rubocop --no-server
