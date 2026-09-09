@@ -50,6 +50,9 @@ services:
       TEST_DATABASE_URL: postgres://${POSTGRES_USER:-owl}:${POSTGRES_PASSWORD:-owl}@postgres:5432/owl_admin_test
       OWL_API_URL: http://api:8000
       OWL_WEB_ORIGINS: http://localhost:5173
+      # Only used to build the "trace ↗" links in the admin transcript view.
+      LANGSMITH_HOST: ${LANGSMITH_HOST:-https://smith.langchain.com}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-owl-dev}
       BINDING: 0.0.0.0
     ports:
       - "3000:3000"
