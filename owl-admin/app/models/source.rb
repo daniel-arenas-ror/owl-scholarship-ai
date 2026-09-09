@@ -1,6 +1,4 @@
 class Source < ApplicationRecord
-  has_many :scholarship_records, dependent: :nullify
-
   validates :name, presence: true
   validates :host, presence: true, uniqueness: true
 
