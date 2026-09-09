@@ -17,9 +17,7 @@ Rails.application.routes.draw do
     resources :conversations, only: [ :index, :show ]
     resources :users, only: [ :index ]
     resources :sources, only: [ :index, :update ]
-    resources :scholarships, only: [ :index, :show, :edit, :update ] do
-      member { post :push }
-    end
+    resources :scholarships, only: [ :index, :show, :edit, :update ]
     resources :messages, only: [] do
       resource :annotation, only: [ :create, :update, :destroy ]
     end
