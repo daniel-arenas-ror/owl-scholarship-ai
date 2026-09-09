@@ -28,7 +28,7 @@ class ScholarshipScraperTest < ActiveSupport::TestCase
     </html>
   HTML
 
-  test "normalizes a page into the owl-api ingest payload" do
+  test "normalizes a page into the wire-field payload" do
     payload = ScholarshipScraper.new("https://fulbright.edu.co/beca", html: PAGE).scrape(dry_run: true)
 
     assert_equal "fulbright.edu.co", payload["source"]
@@ -37,8 +37,8 @@ class ScholarshipScraperTest < ActiveSupport::TestCase
     assert_equal "Comisión Fulbright Colombia", payload["provider"]
     assert_equal "CO", payload["country"]
     assert_equal [], payload["fields"]
-    assert_equal Digest::SHA256.hexdigest(payload["body_markdown"]), payload["content_hash"]
-    assert_not_nil Time.iso8601(payload["last_seen_at"])
+    assert_nil payload["external_id"]
+    assert payload["body_markdown"].present?
   end
 
   test "extracted body keeps headings and list items, drops nav/script/footer" do
@@ -54,15 +54,40 @@ class ScholarshipScraperTest < ActiveSupport::TestCase
     refute_includes body, "© Fulbright"
   end
 
-  test "posts the payload to owl-api and returns the ingest result" do
-    result = with_stubbed_ingest({ scholarship_id: "42", chunks: 3, action: "created" }) do
+  test "persists a ScholarshipRecord + Source and pushes to owl-api" do
+    record = with_stubbed_ingest({ scholarship_id: "42", chunks: 3, action: "created" }) do
       ScholarshipScraper.new("https://fulbright.edu.co/beca", html: PAGE).scrape
     end
 
-    assert_equal "42", result[:scholarship_id]
-    assert_equal "created", result[:action]
+    assert_instance_of ScholarshipRecord, record
+    assert record.persisted?
+    assert_equal "fulbright.edu.co", record.source.host
+    assert_equal "42", record.owl_api_scholarship_id
+    assert_equal "created", record.last_push_status
+    assert_equal "ok", record.source.last_status
     assert_equal "https://fulbright.edu.co/beca", @ingested["source_url"]
     assert_equal "Beca Fulbright para colombianos", @ingested["title"]
+  end
+
+  test "a second scrape of the same url updates the one record" do
+    with_stubbed_ingest({ scholarship_id: "42", chunks: 3, action: "created" }) do
+      ScholarshipScraper.new("https://fulbright.edu.co/beca", html: PAGE).scrape
+      ScholarshipScraper.new("https://fulbright.edu.co/beca", html: PAGE).scrape
+    end
+
+    assert_equal 1, ScholarshipRecord.where(source_url: "https://fulbright.edu.co/beca").count
+  end
+
+  test "an owl-api failure marks the source unhealthy and re-raises" do
+    assert_raises(OwlApiClient::Error) do
+      with_stubbed_ingest(-> { raise OwlApiClient::Error, "boom" }) do
+        ScholarshipScraper.new("https://fulbright.edu.co/beca", html: PAGE).scrape
+      end
+    end
+
+    record = ScholarshipRecord.find_by(source_url: "https://fulbright.edu.co/beca")
+    assert_equal "error", record.last_push_status
+    assert_equal "error", record.source.last_status
   end
 
   test "dry_run does not touch owl-api" do
