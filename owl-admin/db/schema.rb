@@ -55,32 +55,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_08_120004) do
     t.index ["conversation_id"], name: "index_messages_on_conversation_id"
   end
 
-  create_table "scholarship_records", force: :cascade do |t|
-    t.text "amount_note"
-    t.text "body_markdown", null: false
-    t.string "content_hash", null: false
-    t.string "country", default: "CO", null: false
-    t.datetime "created_at", null: false
-    t.text "deadline"
-    t.text "eligibility_text"
-    t.string "external_id"
-    t.jsonb "fields", default: [], null: false
-    t.string "funding_type"
-    t.text "last_push_error"
-    t.string "last_push_status"
-    t.datetime "last_pushed_at"
-    t.jsonb "levels", default: [], null: false
-    t.string "owl_api_scholarship_id"
-    t.string "provider", null: false
-    t.string "pushed_content_hash"
-    t.bigint "source_id"
-    t.string "source_url", null: false
-    t.string "title", null: false
-    t.datetime "updated_at", null: false
-    t.index ["source_id"], name: "index_scholarship_records_on_source_id"
-    t.index ["source_url"], name: "index_scholarship_records_on_source_url", unique: true
-  end
-
   create_table "sources", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.boolean "enabled", default: true, null: false
@@ -107,5 +81,4 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_08_120004) do
   add_foreign_key "conversations", "users"
   add_foreign_key "feedbacks", "messages"
   add_foreign_key "messages", "conversations"
-  add_foreign_key "scholarship_records", "sources"
 end
