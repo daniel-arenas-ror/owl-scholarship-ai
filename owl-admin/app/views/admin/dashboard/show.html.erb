@@ -1,0 +1,59 @@
+<% content_for :title, "Panel" %>
+
+<h1 class="mb-6 font-display text-2xl font-semibold">Panel</h1>
+
+<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+  <% {
+    "Usuarios" => @users_total,
+    "Conversaciones" => @conversations_total,
+    "Respuestas" => @assistant_messages_total,
+    "Anotaciones" => @annotations_total
+  }.each do |label, value| %>
+    <div class="rounded-xl border border-owl-100 bg-white p-4">
+      <p class="text-xs uppercase tracking-wide text-muted"><%= label %></p>
+      <p class="mt-1 text-2xl font-semibold"><%= value %></p>
+    </div>
+  <% end %>
+</div>
+
+<div class="mt-4 grid gap-3 sm:grid-cols-3">
+  <div class="rounded-xl border border-owl-100 bg-white p-4">
+    <p class="text-xs uppercase tracking-wide text-muted">Satisfacción</p>
+    <% if @rated_total.zero? %>
+      <p class="mt-1 text-muted">Sin votos aún</p>
+    <% else %>
+      <p class="mt-1 text-2xl font-semibold"><%= (100.0 * @thumbs_up / @rated_total).round %>%</p>
+      <p class="text-xs text-muted">👍 <%= @thumbs_up %> · 👎 <%= @thumbs_down %></p>
+    <% end %>
+    <%= link_to "Ver detalle", admin_satisfaction_path, class: "mt-2 inline-block text-xs text-owl-600 underline" %>
+  </div>
+
+  <div class="rounded-xl border border-owl-100 bg-white p-4">
+    <p class="text-xs uppercase tracking-wide text-muted">Becas</p>
+    <p class="mt-1 text-2xl font-semibold"><%= @scholarships_total %></p>
+    <p class="text-xs text-muted"><%= @scholarships_pending %> con cambios sin enviar</p>
+    <%= link_to "Inventario", admin_scholarships_path, class: "mt-2 inline-block text-xs text-owl-600 underline" %>
+  </div>
+
+  <div class="rounded-xl border border-owl-100 bg-white p-4">
+    <p class="text-xs uppercase tracking-wide text-muted">Fuentes</p>
+    <p class="mt-1 text-2xl font-semibold"><%= @sources_total %></p>
+    <p class="text-xs text-muted"><%= @sources_unhealthy %> con errores</p>
+    <%= link_to "Estado de fuentes", admin_sources_path, class: "mt-2 inline-block text-xs text-owl-600 underline" %>
+  </div>
+</div>
+
+<h2 class="mt-8 mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Conversaciones recientes</h2>
+<ul class="divide-y divide-owl-100 rounded-xl border border-owl-100 bg-white">
+  <% @recent_conversations.each do |conversation| %>
+    <li>
+      <%= link_to admin_conversation_path(conversation), class: "flex items-center justify-between px-4 py-3 hover:bg-owl-50" do %>
+        <span class="truncate text-sm"><%= conversation.title.presence || "Conversación ##{conversation.id}" %></span>
+        <span class="ml-3 shrink-0 text-xs text-muted"><%= conversation.user&.email %> · <%= l(conversation.created_at, format: :short) %></span>
+      <% end %>
+    </li>
+  <% end %>
+  <% if @recent_conversations.empty? %>
+    <li class="px-4 py-3 text-sm text-muted">Nada todavía.</li>
+  <% end %>
+</ul>

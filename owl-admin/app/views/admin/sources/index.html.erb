@@ -1,0 +1,56 @@
+<% content_for :title, "Fuentes" %>
+
+<h1 class="mb-2 font-display text-2xl font-semibold">Fuentes</h1>
+<p class="mb-6 text-sm text-muted">
+  Cada fuente agrupa las becas rastreadas de un mismo sitio. El scraper actualiza
+  el estado en cada corrida.
+</p>
+
+<div class="overflow-x-auto rounded-xl border border-owl-100 bg-white">
+  <table class="w-full text-sm">
+    <thead class="border-b border-owl-100 text-left text-xs uppercase tracking-wide text-muted">
+      <tr>
+        <th class="px-4 py-2">Fuente</th>
+        <th class="px-4 py-2 text-right">Becas</th>
+        <th class="px-4 py-2">Último rastreo</th>
+        <th class="px-4 py-2">Estado</th>
+        <th class="px-4 py-2">Activa</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-owl-100">
+      <% @sources.each do |source| %>
+        <tr>
+          <td class="px-4 py-2">
+            <p class="font-medium"><%= source.name %></p>
+            <p class="text-xs text-muted"><%= source.host %></p>
+          </td>
+          <td class="px-4 py-2 text-right"><%= source.records_count %></td>
+          <td class="px-4 py-2 text-muted">
+            <%= source.last_scraped_at ? l(source.last_scraped_at, format: :short) : "—" %>
+          </td>
+          <td class="px-4 py-2">
+            <% if source.last_status.blank? %>
+              <span class="text-muted">—</span>
+            <% elsif source.healthy? %>
+              <span class="rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-800">ok</span>
+            <% else %>
+              <span class="rounded bg-red-100 px-1.5 py-0.5 text-xs text-red-800" title="<%= source.last_error %>">
+                <%= source.last_status %>
+              </span>
+            <% end %>
+          </td>
+          <td class="px-4 py-2">
+            <%= button_to source.enabled? ? "Sí" : "No",
+                  admin_source_path(source),
+                  method: :patch,
+                  params: { source: { enabled: !source.enabled } },
+                  class: "rounded px-2 py-0.5 text-xs #{source.enabled? ? 'bg-emerald-100 text-emerald-800' : 'bg-owl-50 text-muted'}" %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <% if @sources.empty? %>
+    <p class="px-4 py-3 text-sm text-muted">Aún no hay fuentes — corre el scraper sobre una URL.</p>
+  <% end %>
+</div>

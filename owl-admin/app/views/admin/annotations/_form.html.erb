@@ -1,0 +1,38 @@
+<% annotation = message.annotation || Annotation.new %>
+<details class="mt-3 border-t border-owl-100 pt-3 text-sm" <%= "open" if annotation.persisted? %>>
+  <summary class="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted">
+    Anotación<% if annotation.persisted? %> · <%= annotation.verdict == "good" ? "buena ✅" : "mala ❌" %><% end %>
+  </summary>
+
+  <%= form_with model: annotation,
+        url: admin_message_annotation_path(message),
+        method: annotation.persisted? ? :patch : :post,
+        class: "mt-2 flex flex-col gap-2" do |f| %>
+    <div class="flex gap-3 text-sm">
+      <label class="flex items-center gap-1">
+        <%= f.radio_button :verdict, "good", checked: annotation.verdict == "good" %> buena
+      </label>
+      <label class="flex items-center gap-1">
+        <%= f.radio_button :verdict, "bad", checked: annotation.verdict == "bad" %> mala
+      </label>
+    </div>
+    <label class="flex flex-col gap-1 text-xs text-muted">
+      Respuesta ideal (para el corpus de fine-tuning)
+      <%= f.text_area :ideal_response, rows: 3, value: annotation.ideal_response,
+            class: "rounded-lg border border-owl-100 px-2 py-1 text-sm text-ink" %>
+    </label>
+    <label class="flex flex-col gap-1 text-xs text-muted">
+      Nota
+      <%= f.text_field :note, value: annotation.note,
+            class: "rounded-lg border border-owl-100 px-2 py-1 text-sm text-ink" %>
+    </label>
+    <div class="flex gap-2">
+      <%= f.submit annotation.persisted? ? "Actualizar" : "Guardar",
+            class: "rounded-lg bg-owl-500 px-3 py-1 text-xs font-medium text-white hover:bg-owl-600" %>
+      <% if annotation.persisted? %>
+        <%= button_to "Eliminar", admin_message_annotation_path(message), method: :delete,
+              class: "rounded-lg border border-owl-100 px-3 py-1 text-xs text-muted hover:bg-owl-50" %>
+      <% end %>
+    </div>
+  <% end %>
+</details>

@@ -1,0 +1,30 @@
+<% content_for :title, "Usuarios" %>
+
+<h1 class="mb-6 font-display text-2xl font-semibold">Usuarios</h1>
+
+<div class="overflow-x-auto rounded-xl border border-owl-100 bg-white">
+  <table class="w-full text-sm">
+    <thead class="border-b border-owl-100 text-left text-xs uppercase tracking-wide text-muted">
+      <tr>
+        <th class="px-4 py-2">Correo</th>
+        <th class="px-4 py-2">Rol</th>
+        <th class="px-4 py-2 text-right">Conversaciones</th>
+        <th class="px-4 py-2">Registrado</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-owl-100">
+      <% @users.each do |user| %>
+        <tr>
+          <td class="px-4 py-2"><%= user.email %></td>
+          <td class="px-4 py-2">
+            <span class="rounded px-1.5 py-0.5 text-xs <%= user.admin? ? "bg-brass-300/40" : "bg-owl-50" %>">
+              <%= user.role %>
+            </span>
+          </td>
+          <td class="px-4 py-2 text-right"><%= user.conversations_count %></td>
+          <td class="px-4 py-2 text-muted"><%= l(user.created_at, format: :short) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

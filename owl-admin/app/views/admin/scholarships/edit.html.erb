@@ -1,0 +1,53 @@
+<% content_for :title, "Editar · #{@record.title}" %>
+
+<div class="mb-6 flex items-center justify-between">
+  <h1 class="font-display text-2xl font-semibold">Editar beca</h1>
+  <%= link_to "← Cancelar", admin_scholarship_path(@record), class: "text-sm text-owl-600 underline" %>
+</div>
+
+<%= form_with model: @record, url: admin_scholarship_path(@record), method: :patch,
+      scope: :scholarship_record, class: "flex flex-col gap-4" do |f| %>
+  <% if @record.errors.any? %>
+    <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
+      <%= @record.errors.full_messages.to_sentence %>
+    </div>
+  <% end %>
+
+  <% [
+    [:title, "Título", :text_field],
+    [:provider, "Proveedor", :text_field],
+    [:country, "País", :text_field],
+    [:funding_type, "Tipo de financiación", :text_field],
+    [:amount_note, "Monto", :text_area],
+    [:deadline, "Fecha límite", :text_area],
+    [:eligibility_text, "Elegibilidad", :text_area]
+  ].each do |field, label, kind| %>
+    <label class="flex flex-col gap-1 text-sm">
+      <%= label %>
+      <%= f.send(kind, field, (kind == :text_area ? { rows: 2 } : {}).merge(
+            class: "rounded-lg border border-owl-100 px-3 py-2 outline-none focus:border-owl-500")) %>
+    </label>
+  <% end %>
+
+  <label class="flex flex-col gap-1 text-sm">
+    Niveles (uno por línea o separados por comas)
+    <%= f.text_area :levels_text, value: @record.levels.join("\n"), rows: 2,
+          class: "rounded-lg border border-owl-100 px-3 py-2 outline-none focus:border-owl-500" %>
+  </label>
+  <label class="flex flex-col gap-1 text-sm">
+    Áreas (una por línea o separadas por comas)
+    <%= f.text_area :fields_text, value: @record.fields.join("\n"), rows: 2,
+          class: "rounded-lg border border-owl-100 px-3 py-2 outline-none focus:border-owl-500" %>
+  </label>
+
+  <label class="flex flex-col gap-1 text-sm">
+    Contenido (Markdown/texto — se vuelve a trocear y embeber en owl-api)
+    <%= f.text_area :body_markdown, rows: 12,
+          class: "rounded-lg border border-owl-100 px-3 py-2 font-mono text-xs outline-none focus:border-owl-500" %>
+  </label>
+
+  <div>
+    <%= f.submit "Guardar cambios",
+          class: "rounded-lg bg-owl-500 px-4 py-2 text-sm font-medium text-white hover:bg-owl-600" %>
+  </div>
+<% end %>

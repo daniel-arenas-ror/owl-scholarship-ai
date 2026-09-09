@@ -1,0 +1,46 @@
+<% content_for :title, "Conversación ##{@conversation.id}" %>
+
+<div class="mb-6 flex items-center justify-between">
+  <div>
+    <h1 class="font-display text-2xl font-semibold">
+      <%= @conversation.title.presence || "Conversación ##{@conversation.id}" %>
+    </h1>
+    <p class="text-sm text-muted">
+      <%= @conversation.user&.email %> · iniciada <%= l(@conversation.created_at, format: :short) %>
+    </p>
+  </div>
+  <%= link_to "← Volver", admin_conversations_path, class: "text-sm text-owl-600 underline" %>
+</div>
+
+<ol class="flex flex-col gap-4">
+  <% @messages.each do |message| %>
+    <li class="rounded-xl border border-owl-100 bg-white p-4">
+      <div class="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+        <span class="font-medium uppercase tracking-wide">
+          <%= message.role == "user" ? "Usuario" : "Owl" %>
+        </span>
+        <%= agent_badge(message.agent) %>
+        <span><%= l(message.created_at, format: :short) %></span>
+        <% if message.feedback %><%= rating_badge(message.feedback.rating) %><% end %>
+        <% if message.trace_url %>
+          <%= link_to "trace ↗", message.trace_url, target: "_blank", rel: "noopener",
+                class: "text-owl-600 underline" %>
+        <% end %>
+      </div>
+
+      <p class="whitespace-pre-wrap text-sm"><%= message.content %></p>
+
+      <% if message.citations.present? %>
+        <ul class="mt-2 border-t border-owl-100 pt-2 text-xs text-muted">
+          <% message.citations.each do |citation| %>
+            <li><%= link_to citation["title"], citation["source_url"], target: "_blank", rel: "noopener", class: "underline" %></li>
+          <% end %>
+        </ul>
+      <% end %>
+
+      <% if message.role == "assistant" %>
+        <%= render "admin/annotations/form", message: message %>
+      <% end %>
+    </li>
+  <% end %>
+</ol>

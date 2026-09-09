@@ -1,0 +1,33 @@
+<% content_for :title, "Satisfacción" %>
+
+<h1 class="mb-6 font-display text-2xl font-semibold">Satisfacción</h1>
+
+<% total = @overall.values.sum %>
+<div class="mb-8 rounded-xl border border-owl-100 bg-white p-4">
+  <p class="text-xs uppercase tracking-wide text-muted">Global</p>
+  <% if total.zero? %>
+    <p class="mt-1 text-muted">Sin votos todavía.</p>
+  <% else %>
+    <p class="mt-1 text-3xl font-semibold"><%= (100.0 * @overall["👍"] / total).round %>%</p>
+    <p class="text-sm text-muted">👍 <%= @overall["👍"] %> · 👎 <%= @overall["👎"] %> · <%= total %> votos</p>
+  <% end %>
+</div>
+
+<div class="grid gap-8 lg:grid-cols-2">
+  <section>
+    <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Por agente</h2>
+    <%= column_chart @by_agent, stacked: true, colors: ["#3c8a5c", "#b3402f"], height: "220px",
+          empty: "Sin datos" %>
+  </section>
+
+  <section>
+    <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">En el tiempo</h2>
+    <%= line_chart @over_time, colors: ["#3c8a5c", "#b3402f"], height: "220px", empty: "Sin datos" %>
+  </section>
+
+  <section class="lg:col-span-2">
+    <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Por beca citada</h2>
+    <%= column_chart @by_scholarship, stacked: true, colors: ["#3c8a5c", "#b3402f"], height: "260px",
+          empty: "Sin datos" %>
+  </section>
+</div>
