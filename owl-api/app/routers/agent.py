@@ -1,4 +1,5 @@
 import json
+import uuid
 from collections.abc import Iterator
 
 from fastapi import APIRouter, Depends
@@ -23,7 +24,10 @@ def _sse(event: str, data: dict) -> str:
 
 def _stream_turn(payload: AgentRespondRequest) -> Iterator[str]:
     graph = get_graph()
-    config = {"configurable": {"thread_id": payload.thread_id}}
+    # We set the root run id ourselves so owl-admin can persist it and link the
+    # admin transcript straight to the LangSmith trace for this turn.
+    run_id = str(uuid.uuid4())
+    config = {"run_id": run_id, "configurable": {"thread_id": payload.thread_id}}
     inputs = {
         "messages": [HumanMessage(content=payload.user_message)],
         "user_context": payload.user_context.model_dump(),
@@ -69,6 +73,7 @@ def _stream_turn(payload: AgentRespondRequest) -> Iterator[str]:
             "citations": citations,
             "agent": agent,
             "route": route,
+            "run_id": run_id,
         }
         if route == "expert":
             done["scholarship"] = {
@@ -88,8 +93,8 @@ def respond(
     """Streams one conversational turn as SSE.
 
     Frames: one ``routing`` (which node took the turn), then ``token`` per chunk,
-    then ``done`` ({ message, citations, agent, route, scholarship? }). ``error``
-    replaces the tail if something breaks mid-stream.
+    then ``done`` ({ message, citations, agent, route, run_id, scholarship? }).
+    ``error`` replaces the tail if something breaks mid-stream.
 
     Called only by owl-admin, which relays this straight to the browser and
     persists the result. Conversation memory lives in the graph's Postgres

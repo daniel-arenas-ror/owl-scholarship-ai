@@ -16,6 +16,7 @@ class Api::Conversations::MessagesController < Api::BaseController
     assembled = +""
     citations = []
     agent = "general_advisor"
+    trace_run_id = nil
     errored = false
 
     OwlApiClient.stream(conversation: conversation, user_message: user_message) do |event, data|
@@ -33,6 +34,7 @@ class Api::Conversations::MessagesController < Api::BaseController
       when "done"
         citations = data["citations"] || []
         agent = data["agent"].presence || agent
+        trace_run_id = data["run_id"].presence
         assembled = data["message"] if data["message"].present?
       end
     end
@@ -40,7 +42,8 @@ class Api::Conversations::MessagesController < Api::BaseController
     return if errored
 
     assistant_message = conversation.messages.create!(
-      role: :assistant, content: assembled, agent: agent, citations: citations
+      role: :assistant, content: assembled, agent: agent, citations: citations,
+      trace_run_id: trace_run_id
     )
     sse("done", assistant_message.as_json_public)
   rescue OwlApiClient::Error => e

@@ -95,6 +95,7 @@ def test_agent_respond_retrieves_and_cites_a_real_match(client, monkeypatch):
         assert done["message"] == "Respuesta simulada citando la beca de prueba."
         assert done["agent"] == "general_advisor"
         assert done["route"] == "general"
+        assert done["run_id"]
         assert len(done["citations"]) == 1
         assert done["citations"][0]["scholarship_id"] == str(scholarship_id)
         assert done["citations"][0]["title"] == "Beca de prueba para maestría"
