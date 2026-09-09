@@ -3,19 +3,19 @@ require "uri"
 require "nokogiri"
 
 # Fetches a single scholarship page by URL, pulls a readable text body plus a
-# few headline fields out of the HTML, upserts a local ScholarshipRecord (linked
-# to its Source), and pushes it to owl-api's ingest endpoint (chunk + embed +
-# store in pgvector) via OwlApiClient.
+# few headline fields out of the HTML, and pushes it to owl-api's ingest
+# endpoint (chunk + embed + store in pgvector) via OwlApiClient. owl-api's
+# `scholarships` table is the only scholarship store — there is no local copy.
+# The scrape is also logged on the matching `Source` row (owl-admin-only, for
+# the health panel).
 #
 # Console use:
-#   ScholarshipScraper.new("https://www.icetex.gov.co/...").scrape  # -> ScholarshipRecord
+#   ScholarshipScraper.new("https://www.icetex.gov.co/...").scrape  # -> ingest result hash
 #   ScholarshipScraper.new(url).scrape(dry_run: true)      # normalize only, no writes
 #   ScholarshipScraper.new(url, html: "<html>...").scrape  # skip the fetch entirely
 #
-# Generic readability-style extraction — no per-site parser. Creating a
-# ScholarshipRecord is the scraper's job alone; admins edit records in the admin
-# app and re-push from there. A later phase wraps this in a GoodJob job to re-run
-# it on a schedule; for now it is a plain object you call by hand.
+# Generic readability-style extraction — no per-site parser. A later phase wraps
+# this in a GoodJob job to re-run it on a schedule; for now call it by hand.
 class ScholarshipScraper
   class Error < StandardError; end
 
@@ -52,24 +52,21 @@ class ScholarshipScraper
     raise Error, "invalid url: #{e.message}"
   end
 
-  # Upserts a ScholarshipRecord, pushes it to owl-api, and returns the record.
-  # With dry_run: true, returns the normalized payload that *would* be persisted
-  # instead of writing anything — handy for iterating in the console.
+  # Pushes the scraped scholarship to owl-api and returns the ingest result
+  #   { scholarship_id:, chunks:, action: "created" | "updated" | "unchanged" }
+  # With dry_run: true, returns the normalized payload that *would* be sent.
   def scrape(dry_run: false)
     document = Nokogiri::HTML(html)
     payload = normalize(document)
 
     return payload if dry_run
 
-    record = ScholarshipRecord.upsert_from_payload(payload)
-    begin
-      record.push_to_owl_api!
-      record.source&.record_scrape!(status: "ok")
-    rescue OwlApiClient::Error => e
-      record.source&.record_scrape!(status: "error", error: e.message)
-      raise
-    end
-    record
+    result = OwlApiClient.ingest(payload)
+    Source.for_url(@url)&.record_scrape!(status: "ok")
+    result
+  rescue OwlApiClient::Error => e
+    Source.for_url(@url)&.record_scrape!(status: "error", error: e.message)
+    raise
   end
 
   private
