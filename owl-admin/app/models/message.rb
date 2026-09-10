@@ -18,6 +18,10 @@ class Message < ApplicationRecord
     "#{LANGSMITH_HOST}/o/-/projects/p/#{project}/r/#{trace_run_id}"
   end
 
+  # From the `generation` jsonb owl-api reports on the `done` frame.
+  def system_prompt = generation["system_prompt"]
+  def model_variant = generation["model_variant"].presence || "base"
+
   def as_json_public
     {
       id: id,

@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     openai_chat_model: str = "gpt-4o-mini"
     openai_embedding_model: str = "text-embedding-3-small"
 
+    # Phase 6 A/B: when a fine-tuned model id is set, this fraction of answer
+    # turns (0.0-1.0) is routed to it instead of openai_chat_model. The router
+    # (classification) always stays on the base model.
+    owl_fine_tuned_model: str = ""
+    owl_fine_tuned_traffic: float = 0.0
+
     # LangSmith
     langsmith_tracing: bool = False
     langsmith_api_key: str = ""

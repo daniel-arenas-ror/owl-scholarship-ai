@@ -77,7 +77,7 @@ def _post(client, thread_id, message):
 
 def _prime(monkeypatch, decision):
     monkeypatch.setattr(tools_module, "embed_query", lambda text: [0.05] * EMBEDDING_DIMENSIONS)
-    monkeypatch.setattr(graph_module, "get_chat_model", lambda: _FakeChatModel())
+    monkeypatch.setattr(graph_module, "pick_answer_model", lambda: (_FakeChatModel(), "base"))
     monkeypatch.setattr(graph_module, "_classify_route", lambda history: decision)
     monkeypatch.setattr(get_settings(), "openai_api_key", "test-key-not-real")
 

@@ -91,6 +91,15 @@ Session-cookie auth (`Admin::SessionsController`, no Devise views), gated to
 | `/admin/users` | Users + conversation counts. |
 | `/admin/messages/:id/annotation` | `Annotation` upsert — verdict (`good`/`bad`) + the ideal reply. The Phase 6 fine-tuning corpus. |
 
+### Fine-tuning export (Phase 6 scaffolding)
+
+`make finetune-export` (→ `FineTuning::Exporter`) turns blessed turns — 👍,
+`verdict: good`, or an `ideal_response` — into an OpenAI chat SFT JSONL under
+`tmp/fine_tuning/`. Each answer message carries `generation` (jsonb:
+`system_prompt`, `model_variant`), set from owl-api's `done` frame, so examples
+are real `(system + context → answer)` pairs. Nothing is trained automatically —
+the full loop is in [`../docs/fine-tuning.md`](../docs/fine-tuning.md).
+
 ### The scraper
 
 `app/services/scholarship_scraper.rb` — fetches one page and pushes it to
@@ -164,5 +173,5 @@ that job properly. The shortcut is on the owl-api side (see its README).
 - **Phase 5 (done)** — the `/admin` app: auth, conversation browser + trace
   links, satisfaction dashboard, scholarship inventory with edit + re-push,
   source-health panel, annotation view.
-- **Phase 6** — export the annotation corpus (`Annotation` → JSONL) for
-  fine-tuning.
+- **Phase 6 (scaffolding done)** — `make finetune-export`, `messages.generation`,
+  the A/B seam in owl-api. Waiting on real annotation data before a job runs.

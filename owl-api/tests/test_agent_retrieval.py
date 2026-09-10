@@ -63,7 +63,7 @@ def test_agent_respond_retrieves_and_cites_a_real_match(client, monkeypatch):
     scholarship_id = _seed_one_scholarship()
     try:
         monkeypatch.setattr(tools_module, "embed_query", lambda text: [0.1] * EMBEDDING_DIMENSIONS)
-        monkeypatch.setattr(graph_module, "get_chat_model", lambda: _FakeChatModel())
+        monkeypatch.setattr(graph_module, "pick_answer_model", lambda: (_FakeChatModel(), "base"))
         monkeypatch.setattr(
             graph_module, "_classify_route", lambda history: RouteDecision(route="general")
         )

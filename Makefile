@@ -2,7 +2,7 @@ COMPOSE := docker compose
 
 .DEFAULT_GOAL := help
 .PHONY: help setup up down restart build logs ps \
-        sh-api sh-admin sh-web db seed console eval \
+        sh-api sh-admin sh-web db seed console eval finetune-export \
         test test-api test-admin test-web fmt lint clean
 
 help: ## Show this help
@@ -53,6 +53,9 @@ seed: ## Push db/seeds/scholarships.json into owl-api (needs `make up` running +
 
 eval: ## Run the Phase 4 graph evals against local seeded data (needs `make up` + OPENAI_API_KEY)
 	$(COMPOSE) exec api python -m evals.run
+
+finetune-export: ## Export the SFT corpus from 👍 + annotated turns → owl-admin/tmp/fine_tuning/
+	$(COMPOSE) exec admin bin/rails fine_tuning:export
 
 test: test-api test-admin test-web ## Run every test suite
 

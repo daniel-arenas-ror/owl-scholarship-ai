@@ -31,8 +31,9 @@ from sqlalchemy import func, or_, select
 from app.config import get_settings
 from app.db import SessionLocal
 from app.db_models import Scholarship
-from app.llm import get_chat_model, get_router_model
+from app.llm import get_router_model, pick_answer_model
 from app.tools import check_eligibility, get_scholarship_detail, search_scholarships
+
 # TODO: add the ability to remenver the user implementing InMemoryStore
 
 GENERAL_SYSTEM_PROMPT = (
@@ -109,6 +110,11 @@ class AgentState(TypedDict):
     route: str
     scholarship_id: str | None
     scholarship_title: str | None
+    # Phase 6: the exact system message the answer was generated from, and which
+    # model variant answered ("base" / "finetuned"). owl-admin persists both so
+    # the fine-tuning export has real (system + context -> answer) examples.
+    system_prompt: str
+    model_variant: str
 
 
 # --- shared helpers -------------------------------------------------------------
@@ -175,12 +181,12 @@ def _format_user_context(user_context: dict | None) -> str:
     return f"\n\nPERFIL DEL ESTUDIANTE: {'; '.join(bits)}." if bits else ""
 
 
-def _stream_answer(messages: list[BaseMessage]) -> AIMessage:
-    llm = get_chat_model()
+def _stream_answer(messages: list[BaseMessage]) -> tuple[AIMessage, str]:
+    llm, variant = pick_answer_model()
     full = None
     for chunk in llm.stream(messages):
         full = chunk if full is None else full + chunk
-    return full if full is not None else AIMessage(content="")
+    return (full if full is not None else AIMessage(content="")), variant
 
 
 # --- nodes --------------------------------------------------------------------
@@ -262,8 +268,13 @@ def general_advisor_node(state: AgentState) -> dict:
         content=f"{GENERAL_SYSTEM_PROMPT}{_format_user_context(state.get('user_context'))}"
         "\n\nBECAS RELEVANTES:\n" + "\n\n".join(context_blocks)
     )
-    answer = _stream_answer([system, *state["messages"][-HISTORY_TURNS:]])
-    return {"messages": [answer], "citations": citations}
+    answer, variant = _stream_answer([system, *state["messages"][-HISTORY_TURNS:]])
+    return {
+        "messages": [answer],
+        "citations": citations,
+        "system_prompt": system.content,
+        "model_variant": variant,
+    }
 
 
 @traceable(run_type="chain", name="scholarship_expert")
@@ -297,7 +308,7 @@ def scholarship_expert_node(state: AgentState) -> dict:
         + _format_user_context(state.get("user_context"))
         + f"\n\nFICHA:\n{ficha}{hint}\n\nCONTENIDO:\n{body}"
     )
-    answer = _stream_answer([system, *state["messages"][-HISTORY_TURNS:]])
+    answer, variant = _stream_answer([system, *state["messages"][-HISTORY_TURNS:]])
     citations = [
         {
             "scholarship_id": detail["scholarship_id"],
@@ -305,7 +316,12 @@ def scholarship_expert_node(state: AgentState) -> dict:
             "source_url": detail["source_url"],
         }
     ]
-    return {"messages": [answer], "citations": citations}
+    return {
+        "messages": [answer],
+        "citations": citations,
+        "system_prompt": system.content,
+        "model_variant": variant,
+    }
 
 
 # --- assembly ---------------------------------------------------------------

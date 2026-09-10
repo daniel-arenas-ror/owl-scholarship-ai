@@ -16,7 +16,9 @@ class Api::Conversations::MessagesControllerTest < ActionDispatch::IntegrationTe
         "message" => "Puedes considerar Chevening.",
         "citations" => [ { "scholarship_id" => "3", "title" => "Chevening", "source_url" => "https://chevening.org" } ],
         "agent" => "scholarship_expert",
-        "run_id" => "run-xyz-789"
+        "run_id" => "run-xyz-789",
+        "system_prompt" => "Eres Owl … FICHA: Chevening …",
+        "model_variant" => "base"
       } ]
     ]
 
@@ -38,6 +40,8 @@ class Api::Conversations::MessagesControllerTest < ActionDispatch::IntegrationTe
     assert_equal "scholarship_expert", assistant.agent
     assert_equal 1, assistant.citations.length
     assert_equal "run-xyz-789", assistant.trace_run_id
+    assert_equal "Eres Owl … FICHA: Chevening …", assistant.system_prompt
+    assert_equal "base", assistant.model_variant
   end
 
   test "relays an error event from owl-api without 500ing" do

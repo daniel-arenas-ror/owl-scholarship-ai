@@ -39,7 +39,7 @@ CORS, and the one trust boundary is a valid RS256 JWT from owl-admin
 | --- | --- |
 | `GET /health` | `{ status, database }`. |
 | `POST /v1/scholarships/ingest` | Upsert a scholarship: chunk `body_markdown`, embed each chunk with OpenAI, store the vectors in pgvector. Dedupes on `content_hash` — computed from the wire fields when the caller omits it, so any edited field re-triggers a re-embed. 503 if `OPENAI_API_KEY` isn't set. |
-| `POST /v1/agent/respond` | **SSE.** Runs one turn of `app/graph.py` and streams it: one `event: routing` (`{ route, scholarship_id, scholarship_title }` — which node took the turn), then `event: token` per chunk, then one `event: done` carrying `{ message, citations, agent, route, run_id, scholarship? }`. `run_id` is the LangSmith root-run id (owl-api sets it, owl-admin persists it for the trace link). `event: error` if something breaks mid-stream. owl-admin relays this stream on to the browser. |
+| `POST /v1/agent/respond` | **SSE.** Runs one turn of `app/graph.py` and streams it: one `event: routing` (`{ route, scholarship_id, scholarship_title }` — which node took the turn), then `event: token` per chunk, then one `event: done` carrying `{ message, citations, agent, route, run_id, system_prompt, model_variant, scholarship? }`. `run_id` is the LangSmith root-run id; `system_prompt` / `model_variant` are what owl-admin persists for the Phase 6 fine-tuning corpus. `event: error` if something breaks mid-stream. owl-admin relays this stream on to the browser. |
 
 Conversation memory lives in the graph's own Postgres checkpointer, keyed by
 `thread_id` — the caller sends only the new `user_message` (plus an optional
@@ -100,6 +100,19 @@ dataset + `evaluate()` run replaces once there's an account and real transcripts
 (Phase 5/6). `@traceable` hooks are already on the nodes and tools, so turning
 on `LANGSMITH_TRACING` gives per-node spans with no further wiring.
 
+`python -m evals.run --model <id>` pins every answer turn to one model — run it
+twice (base vs a fine-tuned id) for the Phase 6 comparison.
+
+## Fine-tuning (Phase 6 scaffolding)
+
+`scripts/finetune.py` is a manual CLI to `upload` a JSONL corpus (exported from
+owl-admin), `create` an OpenAI SFT job, and poll `status` for the
+`fine_tuned_model` id. `app/llm.py:pick_answer_model` then routes
+`OWL_FINE_TUNED_TRAFFIC` (0.0–1.0) of answer turns to `OWL_FINE_TUNED_MODEL`; the
+router always stays on the base model. The chosen `model_variant` rides the
+`done` frame so owl-admin can persist it. Nothing runs on its own — see
+[`docs/fine-tuning.md`](../docs/fine-tuning.md).
+
 ## Layout
 
 | Path | Purpose |
@@ -116,6 +129,7 @@ on `LANGSMITH_TRACING` gives per-node spans with no further wiring.
 | `app/routers/agent.py` | `POST /v1/agent/respond` — SSE framing (`routing` / `token` / `done`) around `app/graph.py`. |
 | `app/security.py` | RS256 JWT verification against owl-admin's JWKS (cached 5 min). |
 | `evals/` | `golden.jsonl` + `run.py` — the local eval suite (`make eval`). |
+| `scripts/finetune.py` | Manual CLI to upload a corpus + run an OpenAI SFT job (Phase 6). |
 
 ## Known Phase 1 shortcut
 
@@ -131,5 +145,7 @@ checkpointer's own tables are separate — `PostgresSaver.setup()` in
   the three tools, `@traceable` hooks, and the local `make eval` suite.
 - **Still on the Phase 4 list** — real LangSmith `evaluate()` + a dataset built
   from transcripts, and CI gating (waits on a LangSmith account and Phase 7).
-- **Phase 5** — the admin dashboards; annotation view feeds the fine-tuning
-  corpus.
+- **Phase 6 (scaffolding done)** — `system_prompt` / `model_variant` on the
+  `done` frame, `pick_answer_model` A/B routing, `scripts/finetune.py`,
+  `evals --model`. Waiting on real annotation data before a job runs; DPO not
+  started.

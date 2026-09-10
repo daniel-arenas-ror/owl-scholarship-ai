@@ -9,6 +9,8 @@ set.
     python -m evals.run --verbose    # also print each answer
     python -m evals.run --judge      # + an LLM groundedness spot-check (extra calls)
     python -m evals.run --json       # machine-readable summary
+    python -m evals.run --model ft:gpt-4o-mini:...   # run the answer turns on a
+                                       fine-tuned model (Phase 6 base-vs-tuned compare)
 
 Not wired into CI (no API key, no seeded data there). This is the harness a
 LangSmith dataset + ``evaluate()`` run replaces once there's an account and real
@@ -80,7 +82,15 @@ def main() -> None:
     parser.add_argument("--verbose", action="store_true", help="print each answer")
     parser.add_argument("--judge", action="store_true", help="LLM groundedness spot-check")
     parser.add_argument("--json", action="store_true", dest="as_json", help="machine-readable")
+    parser.add_argument("--model", help="pin the answer model (e.g. a fine-tuned id)")
     args = parser.parse_args()
+
+    if args.model:
+        # Force every answer turn onto this model, base-vs-tuned comparison.
+        import app.graph as graph_module
+        from app.llm import get_chat_model
+
+        graph_module.pick_answer_model = lambda: (get_chat_model(args.model), "override")
 
     rows: list[dict] = []
     for case in _load_cases():

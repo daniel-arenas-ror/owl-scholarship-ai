@@ -74,6 +74,9 @@ def _stream_turn(payload: AgentRespondRequest) -> Iterator[str]:
             "agent": agent,
             "route": route,
             "run_id": run_id,
+            # Phase 6: what owl-admin persists for the fine-tuning corpus.
+            "system_prompt": final.get("system_prompt", ""),
+            "model_variant": final.get("model_variant", "base"),
         }
         if route == "expert":
             done["scholarship"] = {
@@ -93,8 +96,9 @@ def respond(
     """Streams one conversational turn as SSE.
 
     Frames: one ``routing`` (which node took the turn), then ``token`` per chunk,
-    then ``done`` ({ message, citations, agent, route, run_id, scholarship? }).
-    ``error`` replaces the tail if something breaks mid-stream.
+    then ``done`` ({ message, citations, agent, route, run_id, system_prompt,
+    model_variant, scholarship? }). ``error`` replaces the tail if something
+    breaks mid-stream.
 
     Called only by owl-admin, which relays this straight to the browser and
     persists the result. Conversation memory lives in the graph's Postgres
