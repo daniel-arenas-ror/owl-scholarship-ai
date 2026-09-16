@@ -1,3 +1,12 @@
+require "flipper/ui"
+
+# Only true for a request already carrying an authenticated admin session
+# cookie — used to gate the mounted Flipper::UI Rack app below, since it lives
+# outside the Admin::BaseController stack and can't run a before_action.
+ADMIN_SESSION = lambda do |request|
+  request.env["warden"]&.user(:user)&.admin? || false
+end
+
 Rails.application.routes.draw do
   # Devise supplies the User model's modules; we ship our own JSON controllers
   # below instead of Devise's HTML session/registration views.
@@ -23,11 +32,21 @@ Rails.application.routes.draw do
     end
   end
 
+  # Flipper's own management UI (toggle AI_SCHOLARSHIP_AGENT and any future
+  # flag) — gated to a signed-in admin; anyone else bounces to the login page.
+  constraints(ADMIN_SESSION) do
+    mount Flipper::UI.app(Flipper) => "/admin/flipper"
+  end
+  get "/admin/flipper" => redirect("/admin/login")
+  get "/admin/flipper/*path" => redirect("/admin/login")
+
   get "/.well-known/jwks.json" => "jwks#show"
 
   namespace :api do
     resource :session, only: [ :create, :destroy ]
     resources :registrations, only: [ :create ]
+    resource :features, only: [ :show ]
+    resources :scholarships, only: [ :index, :show ]
 
     resources :conversations, only: [ :create, :show ] do
       resources :messages, only: [ :create ], module: :conversations
