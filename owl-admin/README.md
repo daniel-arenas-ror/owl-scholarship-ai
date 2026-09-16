@@ -34,8 +34,10 @@ bin/rubocop
 | `DELETE /api/session` | none | Log out (stateless; the client just drops the token). |
 | `POST /api/conversations` | Bearer | Start a conversation for the current user. |
 | `GET /api/conversations/:id` | Bearer | Fetch a conversation with its messages. |
-| `POST /api/conversations/:id/messages` | Bearer | **SSE.** Persists the user turn, relays owl-api's stream (`user_message`, `routing`, `token`×N, `done` / `error`), then persists the assembled answer with its `agent` (`general_advisor` / `scholarship_expert`) and `trace_run_id` (from `done.run_id`). `ActionController::Live`. |
+| `POST /api/conversations/:id/messages` | Bearer | **SSE.** Persists the user turn, relays owl-api's stream (`user_message`, `routing`, `token`×N, `done` / `error`), then persists the assembled answer with its `agent` (`general_advisor` / `scholarship_expert`) and `trace_run_id` (from `done.run_id`). `ActionController::Live`. **503** if `AI_SCHOLARSHIP_AGENT` is off. |
 | `POST /api/messages/:id/feedback` | Bearer | `{ rating: "up" \| "down", reason? }` — one row per message; a second call updates it in place. |
+| `GET /api/features` | none | `{ ai_scholarship_agent: bool }` — which screen owl-web should render. Not sensitive; public on purpose. |
+| `GET /api/scholarships`, `GET /api/scholarships/:id` | Bearer | List/search (`?q=`) or fetch one row of the shared `scholarships` table — the browse screen owl-web shows when the flag above is off. |
 | `GET /.well-known/jwks.json` | none | Publishes the RSA public key `owl-api` verifies against. |
 
 Two JWT audiences, both signed RS256 by `JwtService`: `aud: "owl-admin"` for the
@@ -54,6 +56,30 @@ owl-admin reads it directly over a second connection (`owl_api` in
 back through `OwlApiClient.ingest` so owl-api re-chunks and re-embeds. No local
 copy, no sync state. `OWL_API_DATABASE_URL` points at it (a plain `postgres://`
 URL — owl-api itself uses the `postgresql+psycopg://` form).
+
+## Feature flags
+
+[Flipper](https://www.flippercloud.io/docs) (`flipper` + `flipper-active_record`
++ `flipper-ui`), stored in this app's own Postgres — no Redis, no external
+service. Flag names live in `app/services/features.rb`, one place instead of
+scattered strings:
+
+```ruby
+Features::AI_SCHOLARSHIP_AGENT # => :ai_scholarship_agent
+Features.ai_scholarship_agent?  # => Flipper.enabled?(...)
+```
+
+| Flag | On (default) | Off |
+| --- | --- | --- |
+| `AI_SCHOLARSHIP_AGENT` | owl-web shows the chat agent; each turn calls owl-api's LangGraph agent (OpenAI cost). | `POST /api/conversations/:id/messages` returns 503 without calling owl-api; owl-web shows a plain scholarship list + search bar instead (`GET /api/scholarships`). |
+
+Manage it at **`/admin/flipper`** (linked from the sidebar as "Feature flags") —
+signed-in admins only. It's a mounted Rack app (`Flipper::UI`), not an
+`Admin::BaseController`, so it can't run a `before_action`; `config/routes.rb`
+gates it with a `constraints` block that checks Warden directly, with a
+redirect-to-login fallback for everyone else. `db/seeds.rb` turns
+`AI_SCHOLARSHIP_AGENT` on by default (`Flipper.enable` is idempotent — safe to
+re-run `db:seed`).
 
 ## Seeding scholarships
 
@@ -90,6 +116,7 @@ Session-cookie auth (`Admin::SessionsController`, no Devise views), gated to
 | `/admin/sources` | Source-health panel — scholarship count (per host), last scrape, last status; toggle `enabled`. `Source` is owl-admin-only. |
 | `/admin/users` | Users + conversation counts. |
 | `/admin/messages/:id/annotation` | `Annotation` upsert — verdict (`good`/`bad`) + the ideal reply. The Phase 6 fine-tuning corpus. |
+| `/admin/flipper` | Feature flags (see below) — Flipper's own management UI. |
 
 ### Fine-tuning export (Phase 6 scaffolding)
 
