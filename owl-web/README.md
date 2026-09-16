@@ -1,6 +1,8 @@
 # owl-web
 
-React + TypeScript + Vite + Tailwind CSS v4. The chat UI.
+React + TypeScript + Vite + Tailwind CSS v4. The chat UI — or, when owl-admin's
+`AI_SCHOLARSHIP_AGENT` feature flag is off, a plain scholarship list + search
+bar instead. See `App.tsx`.
 
 ## Run with the rest of the stack
 
@@ -25,7 +27,14 @@ Environment (see `../.env.example`), read at build time, must be `VITE_`-prefixe
 
 ## What's here
 
+- `App.tsx` — fetches `GET /api/features` on mount (public, no token) and
+  renders `<Chat>` or `<ScholarshipBrowser>` based on
+  `ai_scholarship_agent`. Defaults to `true` (the chat agent) if owl-admin is
+  ever unreachable — this is a UI switch, not a security boundary.
 - `AuthForm.tsx` — register / log in, toggled from one form.
+- `ScholarshipBrowser.tsx` — the AI-off screen: lists every scholarship
+  (`GET /api/scholarships`), with a search bar (`?q=`) matching title,
+  provider, fields, or levels. No OpenAI call anywhere in this path.
 - `Chat.tsx` — starts a conversation, then per turn makes **one** request to
   owl-admin and consumes the SSE stream it relays back (owl-admin persists
   both messages itself). Renders the live token stream, a "🎓 Consultando la
