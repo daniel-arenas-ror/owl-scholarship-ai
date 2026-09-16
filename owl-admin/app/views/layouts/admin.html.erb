@@ -25,6 +25,7 @@
           <%= admin_nav_link "Becas", admin_scholarships_path %>
           <%= admin_nav_link "Fuentes", admin_sources_path %>
           <%= admin_nav_link "Usuarios", admin_users_path %>
+          <%= admin_nav_link "Feature flags", "/admin/flipper" %>
           <div class="mt-auto border-t border-owl-100 pt-3 text-xs text-muted">
             <p class="truncate px-2"><%= current_user.email %></p>
             <%= button_to "Cerrar sesión", destroy_user_session_path, method: :delete,
