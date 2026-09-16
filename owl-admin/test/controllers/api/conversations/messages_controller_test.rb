@@ -73,6 +73,21 @@ class Api::Conversations::MessagesControllerTest < ActionDispatch::IntegrationTe
     assert_equal "application/json", response.media_type
   end
 
+  test "refuses to call owl-api when AI_SCHOLARSHIP_AGENT is disabled" do
+    Flipper.disable(Features::AI_SCHOLARSHIP_AGENT)
+
+    with_owl_api_stub([]) do
+      post api_conversation_messages_path(@conversation),
+        params: { content: "hola" }, headers: auth_headers, as: :json
+    end
+
+    assert_response :service_unavailable
+    assert_equal "application/json", response.media_type
+    assert_equal 0, @conversation.messages.count
+  ensure
+    Flipper.enable(Features::AI_SCHOLARSHIP_AGENT)
+  end
+
   private
 
   def auth_headers

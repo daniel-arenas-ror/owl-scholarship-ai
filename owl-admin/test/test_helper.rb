@@ -17,6 +17,10 @@ module ActiveSupport
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
+    # Match db/seeds.rb: AI_SCHOLARSHIP_AGENT defaults on ("current behavior").
+    # A test that cares about the disabled path flips it explicitly.
+    setup { Flipper.enable(Features::AI_SCHOLARSHIP_AGENT) }
+
     # owl-api's `scholarships` table is shared across parallel workers (no
     # per-worker copy), so each test cleans up exactly the rows it made.
     teardown do
