@@ -53,3 +53,37 @@ test('logs in and starts a conversation', async () => {
   })
   expect(screen.getByText('a@b.com')).toBeInTheDocument()
 })
+
+test('shows the scholarship browser instead of chat when AI_SCHOLARSHIP_AGENT is off', async () => {
+  const user = userEvent.setup()
+
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string) => {
+      if (url.includes('/api/features')) {
+        return jsonResponse({ ai_scholarship_agent: false })
+      }
+      if (url.includes('/api/session')) {
+        return jsonResponse(
+          { token: 't1', user: { id: 1, email: 'a@b.com', role: 'student' } },
+          201,
+        )
+      }
+      if (url.includes('/api/scholarships')) return jsonResponse([])
+      return jsonResponse({})
+    }),
+  )
+
+  render(<App />)
+
+  await user.type(screen.getByLabelText('Correo'), 'a@b.com')
+  await user.type(screen.getByLabelText('Contraseña'), 'password123')
+  await user.click(screen.getByRole('button', { name: 'Ingresar' }))
+
+  await waitFor(() => {
+    expect(screen.getByLabelText('Buscar becas')).toBeInTheDocument()
+  })
+  expect(
+    screen.queryByPlaceholderText('Escribe tu pregunta…'),
+  ).not.toBeInTheDocument()
+})

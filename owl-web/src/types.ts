@@ -41,3 +41,21 @@ export interface RoutingInfo {
   scholarship_id: string | null
   scholarship_title: string | null
 }
+
+export interface Features {
+  ai_scholarship_agent: boolean
+}
+
+export interface Scholarship {
+  id: number
+  title: string
+  provider: string
+  country: string
+  fields: string[]
+  levels: string[]
+  funding_type: string | null
+  amount_note: string | null
+  deadline: string | null
+  eligibility_text: string | null
+  source_url: string
+}
