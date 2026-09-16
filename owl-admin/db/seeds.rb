@@ -21,3 +21,8 @@ if student.new_record?
   student.save!
   puts "created student user maria@example.com"
 end
+
+# Default every feature flag on, matching current behavior, until an admin
+# decides otherwise at /admin/flipper. Flipper.enable is idempotent.
+Flipper.enable(Features::AI_SCHOLARSHIP_AGENT)
+puts "ai_scholarship_agent: #{Features.ai_scholarship_agent? ? 'on' : 'off'}"
