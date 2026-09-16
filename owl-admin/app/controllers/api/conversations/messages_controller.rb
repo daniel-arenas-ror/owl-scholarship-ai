@@ -6,6 +6,10 @@ class Api::Conversations::MessagesController < Api::BaseController
   include ActionController::Live
 
   def create
+    unless Features.ai_scholarship_agent?
+      return render(json: { error: "the AI scholarship agent is disabled" }, status: :service_unavailable)
+    end
+
     conversation = current_user.conversations.find_by(id: params[:conversation_id])
     return render(json: { error: "not found" }, status: :not_found) unless conversation
 
