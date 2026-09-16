@@ -2,8 +2,10 @@ import type {
   Conversation,
   Feedback,
   FeedbackRating,
+  Features,
   Message,
   RoutingInfo,
+  Scholarship,
   User,
 } from './types'
 
@@ -58,6 +60,26 @@ export function login(email: string, password: string) {
 export function createConversation(token: string) {
   return request<Conversation>('/api/conversations', {
     method: 'POST',
+    headers: authHeader(token),
+  })
+}
+
+/**
+ * Which UI to show — the chat agent, or (AI_SCHOLARSHIP_AGENT off) a plain
+ * scholarship list + search bar. Public, no token: owl-admin's Flipper flag,
+ * not per-user state.
+ */
+export async function getFeatures(): Promise<Features> {
+  const data = await request<Partial<Features>>('/api/features')
+  // Fail open to the current behavior if the field is ever missing.
+  return { ai_scholarship_agent: data.ai_scholarship_agent ?? true }
+}
+
+export function listScholarships(token: string, query: string) {
+  const params = query.trim()
+    ? `?q=${encodeURIComponent(query.trim())}`
+    : ''
+  return request<Scholarship[]>(`/api/scholarships${params}`, {
     headers: authHeader(token),
   })
 }
