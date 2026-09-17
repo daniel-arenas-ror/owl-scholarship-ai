@@ -47,5 +47,8 @@ class UserContext(BaseModel):
 class AgentRespondRequest(BaseModel):
     conversation_id: str
     thread_id: str
+    # owl-admin's User id — which identity's profile the profile_collector /
+    # email_sender nodes and the InMemoryStore hydration act on.
+    user_id: str
     user_message: str
     user_context: UserContext = Field(default_factory=UserContext)

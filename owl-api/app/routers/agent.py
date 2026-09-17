@@ -14,8 +14,18 @@ router = APIRouter(prefix="/v1/agent", tags=["agent"])
 
 # Only these graph nodes stream user-facing tokens. The router's own LLM call
 # (structured classification) also runs under stream_mode="messages"; filtering
-# by node keeps its chunks out of the SSE stream.
+# by node keeps its chunks out of the SSE stream. profile_collector's tool-
+# binding call and email_sender (no LLM call at all) aren't here either —
+# their confirmation message reaches the client via the "no accumulated
+# tokens" fallback below instead.
 _ANSWER_NODES = {"general_advisor", "scholarship_expert"}
+
+_AGENT_BY_ROUTE = {
+    "general": "general_advisor",
+    "expert": "scholarship_expert",
+    "profile": "profile_collector",
+    "email": "email_sender",
+}
 
 
 def _sse(event: str, data: dict) -> str:
@@ -31,6 +41,8 @@ def _stream_turn(payload: AgentRespondRequest) -> Iterator[str]:
     inputs = {
         "messages": [HumanMessage(content=payload.user_message)],
         "user_context": payload.user_context.model_dump(),
+        "user_id": payload.user_id,
+        "conversation_id": payload.conversation_id,
     }
 
     accumulated = ""
@@ -59,7 +71,7 @@ def _stream_turn(payload: AgentRespondRequest) -> Iterator[str]:
 
         final = graph.get_state(config).values
         route = final.get("route", "general")
-        agent = "scholarship_expert" if route == "expert" else "general_advisor"
+        agent = _AGENT_BY_ROUTE.get(route, "general_advisor")
         citations = final.get("citations", [])
         final_message = final["messages"][-1].content if final.get("messages") else accumulated
 
