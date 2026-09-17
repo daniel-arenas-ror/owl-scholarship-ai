@@ -43,9 +43,48 @@ bin/rubocop
 Two JWT audiences, both signed RS256 by `JwtService`: `aud: "owl-admin"` for the
 browser's session (`Authorization: Bearer <token>` on every `/api` call), and a
 5-minute `aud: "owl-api"` token `OwlApiClient` mints per outbound call. The
-browser only ever talks to owl-admin; owl-admin is owl-api's only HTTP client
-(streaming a turn, or `.ingest` from `scholarships:seed`, the scraper, and the
-admin scholarship edit form).
+browser only ever talks to owl-admin; owl-admin is owl-api's HTTP client for
+streaming a turn (now also sending `user_id`, so the agent can key its
+profile store), `.ingest` from `scholarships:seed`, the scraper, and the admin
+scholarship edit form.
+
+### `Internal::` — the reverse direction
+
+owl-api also calls *back* into owl-admin, for the two things only owl-admin's
+database has: the `users` table and the full conversation transcript. Auth is
+a shared secret rather than JWT/JWKS (`InternalAuthenticatable`, checked with
+`ActiveSupport::SecurityUtils.secure_compare` against `OWL_INTERNAL_SECRET`) —
+deliberately simpler than the RS256 scheme above, since this is two narrow
+endpoints rather than a general trust boundary.
+
+| Route | Auth | Purpose |
+| --- | --- | --- |
+| `GET /internal/users/:id/profile` | Shared secret | `{ full_name, email, phone, degrees }`. |
+| `PATCH /internal/users/:id/profile` | Shared secret | Updates `full_name` / `phone` / `degrees` only — strong params deliberately exclude `email`, `encrypted_password`, `role`, so this agent-facing endpoint can never touch identity/auth fields. |
+| `POST /internal/conversations/:id/email` | Shared secret | Sends `ConversationMailer.transcript` for that conversation to its owner's registered email. |
+
+## Personal info fields
+
+`users` gained `full_name`, `phone` (both plain strings), and `degrees` (a
+Postgres string array, default `[]`) — a simple array over a separate model
+since a student's degree list has no fields of its own yet. `User#profile_json`
+is the shape both the `Internal::UsersController` responses and `owl-api`'s
+`app/owl_admin_client.py` agree on.
+
+## Emailing a conversation
+
+`ConversationMailer#transcript` renders the full transcript (colored by role,
+citations as links) and sends it to `conversation.user.email`. In development,
+`config.action_mailer.delivery_method = :letter_opener_web` intercepts every
+send into a local inbox instead of a real SMTP call (`letter_opener_web`, not
+plain `letter_opener` — this container is headless, so the "pop a browser
+tab open" behavior of the base gem doesn't work; the `_web` variant is a
+mountable Rack engine instead). View it at **`/letter_opener`** (linked from
+the sidebar as "Correos (dev)"), gated the same way `/admin/flipper` is —
+signed-in admins only. `ApplicationMailer`'s `from` reads
+`ENV["OWL_MAILER_FROM"].presence || "Owl <owl@example.com>"` — `.presence`,
+not `ENV.fetch`, because docker-compose always defines the var (even as an
+empty-string passthrough), so `.fetch`'s fallback would never trigger.
 
 ### Shared database: the `scholarships` table
 
@@ -167,6 +206,8 @@ so any edited field re-triggers a re-embed; identical content returns
 | `ADMIN_PASSWORD` | Password for the `admin@example.com` account `db/seeds.rb` creates (default `password123`). |
 | `RAILS_MASTER_KEY` | Production only; provided from SSM. Dev reads `config/master.key`. |
 | `OWL_JWT_PRIVATE_KEY` | Production only (PEM, from SSM). Dev generates and caches `config/jwt/private_key.pem`. |
+| `OWL_INTERNAL_SECRET` | Shared secret owl-api sends as a bearer token on `Internal::` requests — must match the same var in owl-api's environment. |
+| `OWL_MAILER_FROM` | `From:` address for `ConversationMailer` (optional; defaults to `Owl <owl@example.com>`). |
 
 ## Styling & JS
 
@@ -202,3 +243,9 @@ that job properly. The shortcut is on the owl-api side (see its README).
   source-health panel, annotation view.
 - **Phase 6 (scaffolding done)** — `make finetune-export`, `messages.generation`,
   the A/B seam in owl-api. Waiting on real annotation data before a job runs.
+- **Agent memory (done, cross-cutting)** — `Internal::UsersController` /
+  `Internal::ConversationsController` (shared-secret auth), `full_name` /
+  `phone` / `degrees` on `users`, `ConversationMailer` + the dev-only
+  `/letter_opener` inbox. Lets owl-api's agent save/recall a student's profile
+  across conversations and email a transcript on request — see owl-api's
+  README for the graph side.
