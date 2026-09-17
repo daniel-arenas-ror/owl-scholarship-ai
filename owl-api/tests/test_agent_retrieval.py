@@ -67,6 +67,7 @@ def test_agent_respond_retrieves_and_cites_a_real_match(client, monkeypatch):
         monkeypatch.setattr(
             graph_module, "_classify_route", lambda history: RouteDecision(route="general")
         )
+        monkeypatch.setattr(graph_module, "load_user_profile", lambda user_id: {})
         monkeypatch.setattr(get_settings(), "openai_api_key", "test-key-not-real")
 
         app.dependency_overrides[require_service_auth] = lambda: {"sub": "1"}
@@ -76,6 +77,7 @@ def test_agent_respond_retrieves_and_cites_a_real_match(client, monkeypatch):
                 json={
                     "conversation_id": "c1",
                     "thread_id": "test-agent-retrieval-match",
+                    "user_id": "1",
                     "user_message": "¿Hay becas de maestría?",
                 },
             )
@@ -99,5 +101,54 @@ def test_agent_respond_retrieves_and_cites_a_real_match(client, monkeypatch):
         assert len(done["citations"]) == 1
         assert done["citations"][0]["scholarship_id"] == str(scholarship_id)
         assert done["citations"][0]["title"] == "Beca de prueba para maestría"
+    finally:
+        _delete_scholarship(scholarship_id)
+
+
+def test_general_advisor_personalizes_from_the_stored_profile(client, monkeypatch):
+    """The InMemoryStore payoff: a name/degrees saved by profile_collector in
+    an earlier turn (any thread) shows up in this node's system prompt."""
+    scholarship_id = _seed_one_scholarship()
+    seen_systems = []
+
+    class _RecordingChatModel:
+        def stream(self, messages):
+            from langchain_core.messages import AIMessageChunk
+
+            seen_systems.append(messages[0].content)
+            yield AIMessageChunk(content="Hola de nuevo.")
+
+    try:
+        monkeypatch.setattr(tools_module, "embed_query", lambda text: [0.1] * EMBEDDING_DIMENSIONS)
+        monkeypatch.setattr(
+            graph_module, "pick_answer_model", lambda: (_RecordingChatModel(), "base")
+        )
+        monkeypatch.setattr(
+            graph_module, "_classify_route", lambda history: RouteDecision(route="general")
+        )
+        monkeypatch.setattr(
+            graph_module,
+            "load_user_profile",
+            lambda user_id: {"full_name": "Maria Lopez", "degrees": ["Ingeniería"]},
+        )
+        monkeypatch.setattr(get_settings(), "openai_api_key", "test-key-not-real")
+
+        app.dependency_overrides[require_service_auth] = lambda: {"sub": "1"}
+        try:
+            client.post(
+                "/v1/agent/respond",
+                json={
+                    "conversation_id": "c2",
+                    "thread_id": "test-personalized-general",
+                    "user_id": "42",
+                    "user_message": "¿hay becas de maestría?",
+                },
+            )
+        finally:
+            app.dependency_overrides.pop(require_service_auth, None)
+
+        assert seen_systems
+        assert "Maria Lopez" in seen_systems[0]
+        assert "Ingeniería" in seen_systems[0]
     finally:
         _delete_scholarship(scholarship_id)

@@ -36,6 +36,7 @@ def test_agent_respond_without_data_is_graceful(client):
             json={
                 "conversation_id": "c1",
                 "thread_id": "test-agent-graceful-no-data",
+                "user_id": "1",
                 "user_message": "hola",
             },
         )

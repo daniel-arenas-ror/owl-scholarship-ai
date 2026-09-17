@@ -68,6 +68,7 @@ def _post(client, thread_id, message):
             json={
                 "conversation_id": "c1",
                 "thread_id": thread_id,
+                "user_id": "1",
                 "user_message": message,
             },
         )
@@ -79,6 +80,7 @@ def _prime(monkeypatch, decision):
     monkeypatch.setattr(tools_module, "embed_query", lambda text: [0.05] * EMBEDDING_DIMENSIONS)
     monkeypatch.setattr(graph_module, "pick_answer_model", lambda: (_FakeChatModel(), "base"))
     monkeypatch.setattr(graph_module, "_classify_route", lambda history: decision)
+    monkeypatch.setattr(graph_module, "load_user_profile", lambda user_id: {})
     monkeypatch.setattr(get_settings(), "openai_api_key", "test-key-not-real")
 
 

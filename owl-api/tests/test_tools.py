@@ -1,11 +1,22 @@
 """app/tools.py — get_scholarship_detail and check_eligibility run against the
 real DB with no OpenAI calls; search_scholarships only needs its embedder faked.
+save_user_profile / load_user_profile / send_conversation_email are thin
+pass-throughs to owl_admin_client — tested here by faking that boundary, the
+same way search_scholarships fakes embed_query.
 """
 
+import app.owl_admin_client as owl_admin_client
 import app.tools as tools_module
 from app.db import SessionLocal
 from app.db_models import Scholarship, ScholarshipChunk
-from app.tools import check_eligibility, get_scholarship_detail, search_scholarships
+from app.tools import (
+    check_eligibility,
+    get_scholarship_detail,
+    load_user_profile,
+    save_user_profile,
+    search_scholarships,
+    send_conversation_email,
+)
 
 EMBEDDING_DIMENSIONS = 1536
 
@@ -91,3 +102,49 @@ def test_search_scholarships_shapes_hits(monkeypatch):
         assert "snippet" in hits[0]
     finally:
         _delete(scholarship_id)
+
+
+def test_save_user_profile_forwards_only_given_fields(monkeypatch):
+    captured = {}
+
+    def fake_update(user_id, **fields):
+        captured["user_id"] = user_id
+        captured["fields"] = fields
+        return {"full_name": fields.get("full_name")}
+
+    monkeypatch.setattr(owl_admin_client, "update_user_profile", fake_update)
+
+    result = save_user_profile("42", full_name="Maria Lopez", phone=None, degrees=None)
+
+    assert captured["user_id"] == "42"
+    assert captured["fields"] == {"full_name": "Maria Lopez", "phone": None, "degrees": None}
+    assert result == {"full_name": "Maria Lopez"}
+
+
+def test_load_user_profile_returns_empty_dict_when_owl_admin_is_unreachable(monkeypatch):
+    def fake_get(user_id):
+        raise owl_admin_client.OwlAdminError("connection refused")
+
+    monkeypatch.setattr(owl_admin_client, "get_user_profile", fake_get)
+
+    assert load_user_profile("42") == {}
+
+
+def test_load_user_profile_passes_through_a_real_profile(monkeypatch):
+    monkeypatch.setattr(
+        owl_admin_client, "get_user_profile", lambda user_id: {"full_name": "Maria Lopez"}
+    )
+    assert load_user_profile("42") == {"full_name": "Maria Lopez"}
+
+
+def test_send_conversation_email_forwards_the_conversation_id(monkeypatch):
+    captured = {}
+
+    def fake_send(conversation_id):
+        captured["conversation_id"] = conversation_id
+        return {"status": "sent"}
+
+    monkeypatch.setattr(owl_admin_client, "send_conversation_email", fake_send)
+
+    assert send_conversation_email("123") == {"status": "sent"}
+    assert captured["conversation_id"] == "123"
