@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     owl_jwt_audience: str = "owl-api"
     owl_jwt_issuer: str = "owl-admin"
 
+    # The reverse direction: owl-api calling owl-admin's Internal:: endpoints
+    # (profile persistence, sending a conversation by email). A shared secret,
+    # not JWT/JWKS — see app/owl_admin_client.py.
+    owl_admin_url: str = "http://admin:3000"
+    owl_internal_secret: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:
