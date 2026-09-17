@@ -1,0 +1,12 @@
+🦉 Owl — <%= @conversation.title.presence || "Conversación ##{@conversation.id}" %>
+<%= l(@conversation.created_at, format: :long) %>
+
+<% @messages.each do |message| -%>
+<%= message.user? ? "Tú" : "Owl" %>:
+<%= message.content %>
+<% message.citations.each do |citation| -%>
+- <%= citation["title"] %> (<%= citation["source_url"] %>)
+<% end -%>
+
+<% end -%>
+Enviado porque lo pediste en el chat de Owl.
