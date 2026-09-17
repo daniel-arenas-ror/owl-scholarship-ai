@@ -72,6 +72,13 @@ end
 group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"
+
+  # Captures sent emails into a web inbox at /letter_opener instead of hitting
+  # real SMTP — how "send this conversation to my email" is verified locally,
+  # no credential needed. The "_web" variant (not launchy/letter_opener alone)
+  # because owl-admin runs headless in a container — nothing to pop a real
+  # browser window open. See config/environments/development.rb + routes.rb.
+  gem "letter_opener_web"
 end
 
 group :test do
