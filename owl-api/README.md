@@ -39,46 +39,108 @@ CORS, and the one trust boundary is a valid RS256 JWT from owl-admin
 | --- | --- |
 | `GET /health` | `{ status, database }`. |
 | `POST /v1/scholarships/ingest` | Upsert a scholarship: chunk `body_markdown`, embed each chunk with OpenAI, store the vectors in pgvector. Dedupes on `content_hash` — computed from the wire fields when the caller omits it, so any edited field re-triggers a re-embed. 503 if `OPENAI_API_KEY` isn't set. |
-| `POST /v1/agent/respond` | **SSE.** Runs one turn of `app/graph.py` and streams it: one `event: routing` (`{ route, scholarship_id, scholarship_title }` — which node took the turn), then `event: token` per chunk, then one `event: done` carrying `{ message, citations, agent, route, run_id, system_prompt, model_variant, scholarship? }`. `run_id` is the LangSmith root-run id; `system_prompt` / `model_variant` are what owl-admin persists for the Phase 6 fine-tuning corpus. `event: error` if something breaks mid-stream. owl-admin relays this stream on to the browser. |
+| `POST /v1/agent/respond` | **SSE.** Runs one turn of `app/graph.py` and streams it: one `event: routing` (`{ route, scholarship_id, scholarship_title }` — which node took the turn), then `event: token` per chunk (skipped entirely for `profile` / `email`, which never call an answer model), then one `event: done` carrying `{ message, citations, agent, route, run_id, system_prompt, model_variant, scholarship? }`. `run_id` is the LangSmith root-run id; `system_prompt` / `model_variant` are what owl-admin persists for the Phase 6 fine-tuning corpus. `event: error` if something breaks mid-stream. Requires `user_id` (owl-admin's user id, as a string) alongside `conversation_id` — the `profile` / `email` nodes and the `InMemoryStore` hydration key off it. owl-admin relays this stream on to the browser. |
 
 Conversation memory lives in the graph's own Postgres checkpointer, keyed by
 `thread_id` — the caller sends only the new `user_message` (plus an optional
-`user_context`), not the history.
+`user_context`), not the history. A student's *profile* (name, degrees) is
+separate: it's cross-conversation, keyed by `user_id` instead of `thread_id` —
+see **Personalization** below.
 
 The system prompt asks for plain text (no Markdown) since owl-web renders
 `message` as-is — the model mostly complies but not perfectly (occasional
 stray `**bold**`). Real Markdown rendering on the frontend is the sturdier
 fix, whenever that's worth doing.
 
-## The graph (Phase 4)
+## The graph (Phase 4, extended with agent memory)
 
 ```
-START -> route ->  general_advisor    -> END
-               \-> scholarship_expert -> END
+START -> route ->  general_advisor     -> END
+               |-> scholarship_expert  -> END
+               |-> profile_collector   -> END
+               \-> email_sender        -> END
 ```
 
 `route` makes one temperature-0 LLM call through `.with_structured_output(RouteDecision)`
-and tags the turn `general` or `expert`. For `expert` it also pulls out the
-scholarship the user named and resolves it to a stored row (`ILIKE` on title /
-provider, with a stop-worded token fallback); if nothing resolves it falls back
-to `general`. A router failure never breaks the turn — it downgrades to
-`general`.
+and tags the turn `general`, `expert`, `profile` (the user shared or asked to
+save personal info), or `email` (the user asked for the conversation by
+email). For `expert` it also pulls out the scholarship the user named and
+resolves it to a stored row (`ILIKE` on title / provider, with a stop-worded
+token fallback); if nothing resolves it falls back to `general`. A router
+failure never breaks the turn — it downgrades to `general`. Only a missing
+`OPENAI_API_KEY` gates routing entirely; an empty scholarships table doesn't
+block `profile` / `email` (each of `general_advisor` / `scholarship_expert`
+checks that itself).
 
 - **`general_advisor`** — retrieve-then-stream over *all* scholarships
   (`search_scholarships`), same shape as Phase 2's single node.
 - **`scholarship_expert`** — retrieval pinned to one `scholarship_id`
   (`get_scholarship_detail`), a specialised prompt, and `check_eligibility`
   hints folded in from the turn's `user_context`.
+- **`profile_collector`** — binds a closure-scoped `update_profile` tool
+  (`full_name` / `phone` / `degrees`, `user_id` and the store captured so the
+  model can never supply them) to the router model, executes whatever the
+  model actually calls it with, and confirms in Spanish which fields it saved
+  (or asks again if the turn had nothing new).
+- **`email_sender`** — no LLM call at all: asks owl-admin to email the full
+  transcript for `conversation_id` and returns a canned confirmation
+  (or failure) message.
 
-Both workers stream via `llm.stream(...)` accumulated with `+`. The SSE layer
-(`app/routers/agent.py`) reads `stream_mode=["updates", "messages"]`: the `route`
-node's state update becomes the `routing` frame, and token chunks are relayed
-only from the two answer nodes (so the router's own LLM chunks never leak).
+Both advisor nodes stream via `llm.stream(...)` accumulated with `+`. The SSE
+layer (`app/routers/agent.py`) reads `stream_mode=["updates", "messages"]`: the
+`route` node's state update becomes the `routing` frame, and token chunks are
+relayed only from `general_advisor` / `scholarship_expert` (so the router's own
+LLM chunks, and the tool-calling `profile_collector` turn, never leak as
+tokens — `profile` / `email` turns arrive as a single `done` message instead).
 
 A `PostgresSaver` checkpointer (own pool, `init_graph()` / `close_graph()` in
-`main.py`'s lifespan) still holds conversation state per `thread_id`. Adding a
-third route later (e.g. a node that collects a user's profile and writes it to
-the DB) is a new node plus one branch in `_pick_route`.
+`main.py`'s lifespan) holds conversation state per `thread_id`.
+
+### Personalization: `InMemoryStore`
+
+A student's profile (`full_name`, `phone`, `degrees`) needs to outlive one
+`thread_id` — the whole point is that a student doesn't have to repeat it in
+their next conversation. `app/graph.py` compiles the graph with a
+[`langgraph.store.memory.InMemoryStore`](https://langchain-ai.github.io/langgraph/reference/store/),
+namespaced `("users", user_id)`, as a **read-through/write-through cache** in
+front of owl-admin's `users` table (the durable copy):
+
+- `_hydrate_profile(store, user_id)` — a cache hit returns instantly; a cold
+  cache costs one `load_user_profile` round trip to owl-admin, then populates
+  the store so nothing after that (any node, any `thread_id`, same process)
+  re-fetches it.
+- `_remember_profile(store, user_id, **updates)` — `profile_collector`'s write
+  path: persist durably through `save_user_profile` (owl-admin), then merge
+  into the cached value immediately, so the very next turn sees it with no
+  re-fetch.
+- `general_advisor` / `scholarship_expert` both fold `_format_stored_profile`
+  into their system prompt, so a saved name/degrees can show up naturally in
+  an *unrelated* scholarship-advice answer, in a brand new conversation.
+
+It's in-process memory, not Postgres — a restart empties it, but correctness
+never depends on that: a cold cache just costs one more owl-admin round trip,
+same as never having cached anything. `init_graph()` and
+`build_graph_without_checkpointer()` both compile with `store=InMemoryStore()`;
+tests construct their own instance directly (`tests/test_agent_profile.py`).
+
+### Calling owl-admin: `app/owl_admin_client.py`
+
+The mirror image of owl-admin's `OwlApiClient` — owl-api calling *back* into
+owl-admin, authenticated with a shared secret (`Authorization: Bearer
+OWL_INTERNAL_SECRET`, checked on owl-admin's side with
+`ActiveSupport::SecurityUtils.secure_compare`) rather than the RS256/JWKS
+scheme owl-admin uses to call owl-api. Deliberately simpler: two narrow
+internal endpoints, not a general-purpose trust boundary.
+
+| Function | Calls |
+| --- | --- |
+| `get_user_profile(user_id)` | `GET /internal/users/:id/profile` |
+| `update_user_profile(user_id, **fields)` | `PATCH /internal/users/:id/profile` (only non-`None` fields) |
+| `send_conversation_email(conversation_id)` | `POST /internal/conversations/:id/email` |
+
+All three wrap `httpx.HTTPError` (and connection failures) as `OwlAdminError`;
+`app/tools.py:load_user_profile` swallows that into `{}` so a hiccup talking to
+owl-admin degrades to "no known profile" instead of breaking the turn.
 
 ## Evals
 
@@ -123,8 +185,9 @@ router always stays on the base model. The chosen `model_variant` rides the
 | `app/db_models.py` | SQLAlchemy ORM models: `Scholarship`, `ScholarshipChunk` (pgvector column). |
 | `app/chunking.py` | Dependency-free paragraph-packing chunker. |
 | `app/embeddings.py` / `app/llm.py` | `langchain-openai` wrappers: embeddings, the worker chat model, the temperature-0 router model. |
-| `app/graph.py` | The LangGraph router + two worker nodes + Postgres checkpointer (see above). |
-| `app/tools.py` | `search_scholarships`, `get_scholarship_detail`, `check_eligibility` — `@traceable` functions the nodes call. |
+| `app/graph.py` | The LangGraph router + four worker nodes, the Postgres checkpointer, and the profile `InMemoryStore` (see above). |
+| `app/tools.py` | `search_scholarships`, `get_scholarship_detail`, `check_eligibility`, `load_user_profile`, `save_user_profile`, `send_conversation_email` — `@traceable` functions the nodes call. |
+| `app/owl_admin_client.py` | The reverse-direction HTTP client to owl-admin's `Internal::` endpoints (profile read/write, send-email), shared-secret auth. |
 | `app/routers/scholarships.py` | `POST /v1/scholarships/ingest`. |
 | `app/routers/agent.py` | `POST /v1/agent/respond` — SSE framing (`routing` / `token` / `done`) around `app/graph.py`. |
 | `app/security.py` | RS256 JWT verification against owl-admin's JWKS (cached 5 min). |
@@ -149,3 +212,8 @@ checkpointer's own tables are separate — `PostgresSaver.setup()` in
   `done` frame, `pick_answer_model` A/B routing, `scripts/finetune.py`,
   `evals --model`. Waiting on real annotation data before a job runs; DPO not
   started.
+- **Agent memory (done, cross-cutting)** — `profile_collector` (real
+  tool-calling) and `email_sender` nodes, `app/owl_admin_client.py`, and an
+  `InMemoryStore` profile cache shared by all four nodes. See owl-admin's
+  README for the `Internal::` endpoints and the dev-only email inbox this
+  feature calls into.
