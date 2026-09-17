@@ -35,6 +35,7 @@ class OwlApiClient
     request.body = {
       conversation_id: conversation.id.to_s,
       thread_id: conversation.id.to_s,
+      user_id: conversation.user_id.to_s,
       user_message: user_message.content
     }.to_json
 
