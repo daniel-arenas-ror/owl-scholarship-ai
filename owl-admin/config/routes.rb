@@ -40,7 +40,27 @@ Rails.application.routes.draw do
   get "/admin/flipper" => redirect("/admin/login")
   get "/admin/flipper/*path" => redirect("/admin/login")
 
+  # Dev-only web inbox for mail sent via config.action_mailer.delivery_method
+  # = :letter_opener_web (see config/environments/development.rb) — how
+  # "send this conversation to my email" gets verified with no real SMTP.
+  if Rails.env.development?
+    constraints(ADMIN_SESSION) do
+      mount LetterOpenerWeb::Engine, at: "/letter_opener"
+    end
+    get "/letter_opener" => redirect("/admin/login")
+    get "/letter_opener/*path" => redirect("/admin/login")
+  end
+
   get "/.well-known/jwks.json" => "jwks#show"
+
+  # owl-api calling owl-admin — the reverse direction of the browser -> admin
+  # -> api flow, for the few things only owl-admin can do (persist a profile,
+  # send mail). Shared-secret authenticated; see InternalAuthenticatable.
+  namespace :internal do
+    get   "users/:id/profile", to: "users#show_profile", as: "user_profile"
+    patch "users/:id/profile", to: "users#update_profile", as: "update_user_profile"
+    post  "conversations/:id/email", to: "conversations#email", as: "email_conversation"
+  end
 
   namespace :api do
     resource :session, only: [ :create, :destroy ]
