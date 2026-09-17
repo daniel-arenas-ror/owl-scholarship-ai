@@ -11,6 +11,7 @@ door open to binding them to an agent later.
 from langsmith import traceable
 from sqlalchemy import select
 
+from app import owl_admin_client
 from app.db import SessionLocal
 from app.db_models import Scholarship, ScholarshipChunk
 from app.embeddings import embed_query
@@ -129,3 +130,36 @@ def check_eligibility(scholarship_id: str, user_context: dict | None = None) -> 
         }
 
     return {"status": status, "scholarship_title": detail["title"], "reasons": reasons}
+
+
+def load_user_profile(user_id: str) -> dict:
+    """Read-through helper for the InMemoryStore: the durable copy in
+    owl-admin's `users` table. Tolerates owl-admin being unreachable — a cold
+    cache just means the agent doesn't personalize this turn, not a failure."""
+    try:
+        return owl_admin_client.get_user_profile(user_id)
+    except owl_admin_client.OwlAdminError:
+        return {}
+
+
+@traceable(run_type="tool", name="save_user_profile")
+def save_user_profile(
+    user_id: str,
+    *,
+    full_name: str | None = None,
+    phone: str | None = None,
+    degrees: list[str] | None = None,
+) -> dict:
+    """Persist profile fields the student stated in chat to owl-admin's
+    `users` table. Only non-None fields are sent — a partial update."""
+    return owl_admin_client.update_user_profile(
+        user_id, full_name=full_name, phone=phone, degrees=degrees
+    )
+
+
+@traceable(run_type="tool", name="send_conversation_email")
+def send_conversation_email(conversation_id: str) -> dict:
+    """Ask owl-admin to email this conversation's transcript to its owner.
+    owl-admin already has the full, authoritative copy of every message, so
+    nothing here needs to serialize the conversation."""
+    return owl_admin_client.send_conversation_email(conversation_id)
