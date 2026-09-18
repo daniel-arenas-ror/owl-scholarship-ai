@@ -58,6 +58,10 @@ GENERAL_SYSTEM_PROMPT = (
     "para responder, dilo con honestidad en vez de inventar datos. "
     "Responde en texto plano: nada de Markdown (sin **negritas**, sin encabezados "
     "con #, sin listas con - o 1.) — la interfaz aún no interpreta ese formato."
+    "Estos son los pasos que debes seguir para ayudar a los estudiantes: "
+    "1. preguntarle por el nombre y si tiene algún titulo universitario "
+    "2. que tipo de beca le gustaria aplicar (maestria, doctorado, pregrado, etc) "
+    "3. Pais de interes para aplicar a la beca "
 )
 
 EXPERT_SYSTEM_PROMPT = (
