@@ -64,6 +64,18 @@ it's time: CI builds an image per service, pushes it to Amazon ECR, and runs
 `docker compose pull && up -d` on the EC2 instance over SSM — no SSH keys in CI.
 See [`owl-infra/README.md`](owl-infra/README.md) and [`SETUP.md`](SETUP.md).
 
+**Not yet decided: production email delivery.** `ConversationMailer` (added
+alongside the agent's "email me this conversation" feature) has nowhere to
+actually send from in production — `config/environments/production.rb` has no
+`action_mailer.smtp_settings`, so a real call would try, and fail, to talk to
+an SMTP server on `localhost`. Dev/test use `letter_opener_web` (a local
+inbox, no real sending). Two real options once this phase starts: AWS SES
+(fits the AWS deploy, but needs domain verification + moving out of the SES
+sandbox) or a third-party SMTP provider (Mailgun/SendGrid/Postmark free tier —
+faster to stand up, no AWS-side verification wait). Pick one before relying on
+this feature in production; it's not required for the core scholarship-search
+product to work.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

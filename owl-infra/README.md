@@ -56,7 +56,11 @@ aws ssm put-parameter --name /owl/POSTGRES_PASSWORD   --type SecureString --over
 aws ssm put-parameter --name /owl/OPENAI_API_KEY      --type SecureString --overwrite --value "sk-..."
 aws ssm put-parameter --name /owl/RAILS_MASTER_KEY    --type SecureString --overwrite --value "$(cat ../owl-admin/config/master.key)"
 aws ssm put-parameter --name /owl/OWL_JWT_PRIVATE_KEY --type SecureString --overwrite --value "$(cat ../owl-admin/config/jwt/private_key.pem)"
+aws ssm put-parameter --name /owl/OWL_INTERNAL_SECRET --type SecureString --overwrite --value "$(openssl rand -hex 32)"
 # OWL_DOMAIN / ACME_EMAIL are set from terraform.tfvars; override here if needed.
+# OWL_MAILER_FROM is optional (falls back to a default in owl-admin) — no
+# real SMTP/SES is wired up yet, so ConversationMailer#transcript won't
+# actually send until that's configured; see the note in the main README.
 ```
 
 ### 4. First deploy

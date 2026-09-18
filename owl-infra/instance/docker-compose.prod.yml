@@ -31,6 +31,10 @@ services:
       LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
       LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
       LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-owl-prod}
+      # The reverse direction: owl-api -> owl-admin, to persist a profile or
+      # send a conversation by email. Must match admin's OWL_INTERNAL_SECRET.
+      OWL_ADMIN_URL: http://admin:3000
+      OWL_INTERNAL_SECRET: ${OWL_INTERNAL_SECRET}
     depends_on:
       postgres:
         condition: service_healthy
@@ -43,8 +47,14 @@ services:
       RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
       OWL_JWT_PRIVATE_KEY: ${OWL_JWT_PRIVATE_KEY}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/owl_admin
+      # owl-admin reads owl-api's `scholarships` table directly (plain
+      # postgres:// URL; owl-api itself uses the postgresql+psycopg:// form).
+      OWL_API_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/owl_api
       OWL_API_URL: http://api:8000
       OWL_WEB_ORIGINS: https://${OWL_DOMAIN}
+      # Must match api's OWL_INTERNAL_SECRET above exactly.
+      OWL_INTERNAL_SECRET: ${OWL_INTERNAL_SECRET}
+      OWL_MAILER_FROM: ${OWL_MAILER_FROM:-}
     depends_on:
       postgres:
         condition: service_healthy

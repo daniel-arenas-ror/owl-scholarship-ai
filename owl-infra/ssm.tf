@@ -21,8 +21,15 @@ locals {
     LANGSMITH_PROJECT      = "owl-prod"
     OWL_JWT_PRIVATE_KEY    = "CHANGE_ME" # PEM, single line with \n escapes
     RAILS_MASTER_KEY       = "CHANGE_ME"
-    OWL_DOMAIN             = var.domain
-    ACME_EMAIL             = var.acme_email
+    # Shared secret for owl-api -> owl-admin's Internal:: endpoints (profile
+    # read/write, send-email). Must be the same value on both containers --
+    # it's the same var name on each, so one SSM param covers both.
+    OWL_INTERNAL_SECRET = "CHANGE_ME"
+    # Optional: ConversationMailer's From: header. Falls back to
+    # "Owl <owl@example.com>" in owl-admin if left blank.
+    OWL_MAILER_FROM = ""
+    OWL_DOMAIN      = var.domain
+    ACME_EMAIL      = var.acme_email
   }
 }
 
