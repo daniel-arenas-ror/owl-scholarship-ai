@@ -92,5 +92,5 @@ jobs:
           bundler-cache: true
       - run: PGPASSWORD=owl createdb -h localhost -U owl owl_api_test
       - run: bin/rails db:prepare
-      - run: bin/rails test
+      - run: bundle exec rspec
       - run: bin/rubocop --no-server

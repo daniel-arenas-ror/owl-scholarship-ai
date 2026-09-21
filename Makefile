@@ -63,7 +63,7 @@ test-api: ## Run owl-api tests
 	$(COMPOSE) run --rm api pytest
 
 test-admin: ## Run owl-admin tests
-	$(COMPOSE) run --rm admin bin/rails test
+	$(COMPOSE) run --rm admin bundle exec rspec
 
 test-web: ## Run owl-web tests
 	$(COMPOSE) run --rm web npm test --silent

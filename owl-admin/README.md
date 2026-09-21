@@ -21,9 +21,33 @@ Needs Postgres reachable at `DATABASE_URL` (defaults to
 bundle install
 bin/rails db:prepare
 bin/dev            # Puma + Tailwind watcher (http://localhost:3000)
-bin/rails test
+bundle exec rspec
 bin/rubocop
 ```
+
+### Testing
+
+RSpec (`rspec-rails` + `factory_bot_rails` + `shoulda-matchers`), not Rails'
+default Minitest — `spec/models` and `spec/requests` cover every model and
+every controller, plus `spec/services`. Request specs (not controller specs —
+the modern RSpec-Rails default) exercise full routing + middleware, same as
+the old `ActionDispatch::IntegrationTest` suite did.
+
+`spec/rails_helper.rb` force-sets `RAILS_ENV=test` **unconditionally** (not
+`||=`): `Dockerfile.dev` hardcodes `ENV RAILS_ENV=development` for the dev
+container, and only an unconditional assignment overrides that (`bin/rails
+test` used to paper over this the same way, internally). Skipping this makes
+every request spec 403 against the dev host allowlist and run against the dev
+database instead of the test one — a real, easy-to-reintroduce trap if this
+file is ever regenerated.
+
+`spec/support/scholarship_helpers.rb`'s `create_scholarship` (not a
+`Scholarship` factory) exists because `Scholarship` reads owl-api's table over
+a second, unmanaged connection (`database_tasks: false`) that transactional
+fixtures don't reliably wrap — each spec using it cleans up exactly the rows
+it made in an `after` hook, the same workaround the old Minitest suite used.
+`include_context "signed in admin"` (`spec/support/signed_in_admin.rb`) gets a
+signed-in `admin` in a request spec.
 
 ## API
 
